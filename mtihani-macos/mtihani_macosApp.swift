@@ -8,10 +8,25 @@
 import SwiftUI
 
 @main
-struct mtihani_macosApp: App {
+struct MtihaniApp: App {
+    @StateObject private var appState: AppState
+
+    init() {
+        let state = AppState.live()
+        _appState = StateObject(wrappedValue: state)
+        state.start()
+    }
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        MenuBarExtra {
+            MenuBarView(appState: appState)
+        } label: {
+            MenuBarLabel(appState: appState)
+        }
+        .menuBarExtraStyle(.window)
+
+        Settings {
+            SettingsView(appState: appState)
         }
     }
 }
