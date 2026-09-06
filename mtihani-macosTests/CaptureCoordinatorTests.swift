@@ -335,6 +335,14 @@ private final class MockAPIClient: MtihaniAPIClient {
     private(set) var lastLanguage: String?
     private var uploadContinuation: CheckedContinuation<AcceptedCapture, Error>?
 
+    func listSessions() async throws -> [Session] {
+        [session]
+    }
+
+    func createSession() async throws -> Session {
+        session
+    }
+
     func getSession(id: String) async throws -> Session {
         if let sessionError {
             throw sessionError

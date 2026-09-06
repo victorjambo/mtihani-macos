@@ -19,6 +19,20 @@ final class APIClientTests: XCTestCase {
         )
     }
 
+    func testListAndCreateSessionRequestsUseCollectionURL() throws {
+        let builder = APIRequestBuilder(baseURL: baseURL)
+        let listRequest = try builder.listSessionsRequest()
+        let createRequest = try builder.createSessionRequest()
+
+        XCTAssertEqual(listRequest.httpMethod, "GET")
+        XCTAssertEqual(createRequest.httpMethod, "POST")
+        XCTAssertEqual(
+            listRequest.url?.absoluteString,
+            "https://api.example.com/api/sessions"
+        )
+        XCTAssertEqual(createRequest.url, listRequest.url)
+    }
+
     func testUploadRequestBuildsPNGMultipartBodyWithLanguage() throws {
         let request = try APIRequestBuilder(baseURL: baseURL)
             .uploadCaptureRequest(
@@ -96,6 +110,29 @@ final class APIClientTests: XCTestCase {
         await assertAPIError(.invalidResponse) {
             try await client.getSession(id: "session-123")
         }
+    }
+
+    @MainActor
+    func testClientListsAndCreatesSessions() async throws {
+        let transport = MockHTTPTransport()
+        let client = URLSessionMtihaniAPIClient(
+            baseURL: baseURL,
+            transport: transport
+        )
+
+        transport.statusCode = 200
+        transport.responseData = Data(
+            #"[{"id":"session-2","status":"closed"},{"id":"session-1","status":"active"}]"#.utf8
+        )
+        let sessions = try await client.listSessions()
+        XCTAssertEqual(sessions.map(\.id), ["session-2", "session-1"])
+
+        transport.statusCode = 201
+        transport.responseData = Data(
+            #"{"id":"session-3","status":"active"}"#.utf8
+        )
+        let created = try await client.createSession()
+        XCTAssertEqual(created, Session(id: "session-3", status: .active))
     }
 
     @MainActor

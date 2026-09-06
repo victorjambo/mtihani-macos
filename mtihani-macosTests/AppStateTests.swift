@@ -42,6 +42,28 @@ final class AppStateTests: XCTestCase {
         context.appState.stop()
     }
 
+    func testRefreshingSessionsLoadsBackendSessions() async {
+        let context = makeContext()
+        defer { context.cleanUp() }
+
+        await context.appState.refreshSessions()
+
+        XCTAssertEqual(
+            context.appState.sessions,
+            [Session(id: "listed-session", status: .active)]
+        )
+    }
+
+    func testStartingSessionSelectsNewSession() async {
+        let context = makeContext()
+        defer { context.cleanUp() }
+
+        await context.appState.startNewSession()
+
+        XCTAssertEqual(context.settings.sessionID, "created-session")
+        XCTAssertEqual(context.appState.sessions.first?.id, "created-session")
+    }
+
     private func makeContext() -> AppStateTestContext {
         let suiteName = "AppStateTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -66,6 +88,7 @@ final class AppStateTests: XCTestCase {
             permissions: permissions,
             captureCoordinator: coordinator,
             triggerMonitor: monitor,
+            apiClientFactory: { _ in apiClient },
             settingsValidationDelayNanoseconds: 0
         )
 
@@ -125,6 +148,14 @@ private final class AppStateMockScreenCapturer: ScreenCapturing {
 private final class AppStateMockAPIClient: MtihaniAPIClient {
     var onGetSession: ((String) -> Void)?
     private(set) var requestedSessionIDs: [String] = []
+
+    func listSessions() async throws -> [Session] {
+        [Session(id: "listed-session", status: .active)]
+    }
+
+    func createSession() async throws -> Session {
+        Session(id: "created-session", status: .active)
+    }
 
     func getSession(id: String) async throws -> Session {
         requestedSessionIDs.append(id)

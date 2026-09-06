@@ -9,6 +9,9 @@ final class AppState: ObservableObject {
     let captureCoordinator: CaptureCoordinator
 
     @Published private(set) var triggerIsMonitoring = false
+    @Published private(set) var sessions: [Session] = []
+    @Published private(set) var isSessionOperationInProgress = false
+    @Published private(set) var sessionOperationError: String?
 
     var triggerStatusTitle: String {
         if !settings.isTripleClickEnabled {
@@ -18,6 +21,7 @@ final class AppState: ObservableObject {
     }
 
     private let triggerMonitor: any CaptureTriggerMonitor
+    private let apiClientFactory: MtihaniAPIClientFactory
     private let settingsValidationDelayNanoseconds: UInt64
     private var cancellables = Set<AnyCancellable>()
     private var startupValidationTask: Task<Void, Never>?
@@ -29,12 +33,14 @@ final class AppState: ObservableObject {
         permissions: PermissionsService,
         captureCoordinator: CaptureCoordinator,
         triggerMonitor: any CaptureTriggerMonitor,
+        apiClientFactory: @escaping MtihaniAPIClientFactory,
         settingsValidationDelayNanoseconds: UInt64 = 500_000_000
     ) {
         self.settings = settings
         self.permissions = permissions
         self.captureCoordinator = captureCoordinator
         self.triggerMonitor = triggerMonitor
+        self.apiClientFactory = apiClientFactory
         self.settingsValidationDelayNanoseconds = settingsValidationDelayNanoseconds
         bindState()
     }
@@ -45,13 +51,14 @@ final class AppState: ObservableObject {
         let screenCapturer = ScreenCaptureService(
             permissionService: permissions
         )
+        let apiClientFactory: MtihaniAPIClientFactory = { baseURL in
+            URLSessionMtihaniAPIClient(baseURL: baseURL)
+        }
         let captureCoordinator = CaptureCoordinator(
             settings: settings,
             screenCapturer: screenCapturer,
             permissionService: permissions,
-            apiClientFactory: { baseURL in
-                URLSessionMtihaniAPIClient(baseURL: baseURL)
-            }
+            apiClientFactory: apiClientFactory
         )
         let triggerMonitor = GlobalClickMonitor(
             requiredClickCount: { settings.requiredClickCount }
@@ -65,7 +72,8 @@ final class AppState: ObservableObject {
             settings: settings,
             permissions: permissions,
             captureCoordinator: captureCoordinator,
-            triggerMonitor: triggerMonitor
+            triggerMonitor: triggerMonitor,
+            apiClientFactory: apiClientFactory
         )
     }
 
@@ -102,6 +110,58 @@ final class AppState: ObservableObject {
 
     func requestScreenRecordingPermission() {
         permissions.requestScreenRecordingPermissionIfNeeded()
+    }
+
+    func refreshSessions() async {
+        guard !isSessionOperationInProgress else { return }
+        guard let client = makeAPIClient() else { return }
+
+        isSessionOperationInProgress = true
+        sessionOperationError = nil
+        defer { isSessionOperationInProgress = false }
+
+        do {
+            sessions = try await client.listSessions()
+        } catch {
+            sessionOperationError = sessionErrorMessage(error)
+        }
+    }
+
+    func startNewSession() async {
+        guard !isSessionOperationInProgress else { return }
+        guard let client = makeAPIClient() else { return }
+
+        isSessionOperationInProgress = true
+        sessionOperationError = nil
+        defer { isSessionOperationInProgress = false }
+
+        do {
+            let session = try await client.createSession()
+            sessions.removeAll { $0.id == session.id }
+            sessions.insert(session, at: 0)
+            settings.sessionID = session.id
+        } catch {
+            sessionOperationError = sessionErrorMessage(error)
+        }
+    }
+
+    private func makeAPIClient() -> (any MtihaniAPIClient)? {
+        switch settings.configuration {
+        case let .success(configuration):
+            return apiClientFactory(configuration.apiBaseURL)
+        case let .failure(error):
+            sessionOperationError = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func sessionErrorMessage(_ error: Error) -> String {
+        if let localizedError = error as? LocalizedError,
+           let description = localizedError.errorDescription
+        {
+            return description
+        }
+        return "The session request failed. Please try again."
     }
 
     private func bindState() {

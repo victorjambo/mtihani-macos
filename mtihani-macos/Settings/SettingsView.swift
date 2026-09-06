@@ -23,8 +23,23 @@ struct SettingsView: View {
             }
 
             Section("Session") {
+                Picker("Previous Session", selection: previousSessionSelection) {
+                    Text("Select a session…").tag("")
+                    ForEach(appState.sessions, id: \.id) { session in
+                        Text("\(session.id) · \(session.status.rawValue.capitalized)")
+                            .tag(session.id)
+                    }
+                }
+                .disabled(appState.isSessionOperationInProgress || appState.sessions.isEmpty)
+
                 TextField("Session ID", text: binding(for: \AppSettings.sessionID))
                     .textFieldStyle(.roundedBorder)
+
+                if let error = appState.sessionOperationError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
 
                 Picker(
                     "Preferred Language",
@@ -50,6 +65,13 @@ struct SettingsView: View {
                         coordinator.state.isProcessing
                             || settings.trimmedSessionID.isEmpty
                     )
+
+                    Button("Refresh Sessions") {
+                        Task {
+                            await appState.refreshSessions()
+                        }
+                    }
+                    .disabled(appState.isSessionOperationInProgress)
                 }
             }
 
@@ -100,10 +122,13 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
-        .frame(width: 480, height: 470)
+        .frame(width: 480, height: 540)
         .onAppear {
             appState.start()
             appState.permissions.refreshScreenRecordingPermission()
+            Task {
+                await appState.refreshSessions()
+            }
         }
     }
 
@@ -116,6 +141,21 @@ struct SettingsView: View {
         case .denied:
             "Not granted"
         }
+    }
+
+    private var previousSessionSelection: Binding<String> {
+        Binding(
+            get: {
+                let currentID = settings.trimmedSessionID
+                return appState.sessions.contains { $0.id == currentID }
+                    ? currentID
+                    : ""
+            },
+            set: { sessionID in
+                guard !sessionID.isEmpty else { return }
+                settings.sessionID = sessionID
+            }
+        )
     }
 
     private func binding<Value>(

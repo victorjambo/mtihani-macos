@@ -38,6 +38,22 @@ struct MenuBarView: View {
 
             Button {
                 Task {
+                    await appState.startNewSession()
+                }
+            } label: {
+                Label(
+                    appState.isSessionOperationInProgress
+                        ? "Starting Session…"
+                        : "Start New Session",
+                    systemImage: "plus.circle"
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .disabled(appState.isSessionOperationInProgress || coordinator.state.isProcessing)
+
+            Button {
+                Task {
                     await coordinator.captureAndUpload()
                 }
             } label: {
@@ -47,6 +63,13 @@ struct MenuBarView: View {
             .buttonStyle(.plain)
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(!coordinator.canCapture)
+
+            if let error = appState.sessionOperationError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             Button {
                 openSettings()

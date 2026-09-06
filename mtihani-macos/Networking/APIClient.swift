@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 protocol MtihaniAPIClient {
+    func listSessions() async throws -> [Session]
+    func createSession() async throws -> Session
     func getSession(id: String) async throws -> Session
 
     func uploadCapture(
@@ -35,6 +37,20 @@ nonisolated struct APIRequestBuilder: Sendable {
     )
 
     let baseURL: URL
+
+    func listSessionsRequest() throws -> URLRequest {
+        var request = URLRequest(url: try endpointURL(pathComponents: ["sessions"]))
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        return request
+    }
+
+    func createSessionRequest() throws -> URLRequest {
+        var request = URLRequest(url: try endpointURL(pathComponents: ["sessions"]))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        return request
+    }
 
     func getSessionRequest(id: String) throws -> URLRequest {
         var request = URLRequest(url: try endpointURL(pathComponents: ["sessions", id]))
@@ -137,6 +153,14 @@ final class URLSessionMtihaniAPIClient: MtihaniAPIClient {
         requestBuilder = APIRequestBuilder(baseURL: baseURL)
         self.transport = transport
         self.decoder = decoder
+    }
+
+    func listSessions() async throws -> [Session] {
+        try await send(requestBuilder.listSessionsRequest(), expectedStatusCode: 200)
+    }
+
+    func createSession() async throws -> Session {
+        try await send(requestBuilder.createSessionRequest(), expectedStatusCode: 201)
     }
 
     func getSession(id: String) async throws -> Session {

@@ -24,6 +24,10 @@ and returns to its waiting state after the backend accepts the capture.
 The development backend URL defaults to `http://localhost:3000/api`. Production
 deployments should use HTTPS.
 
+Settings lists backend sessions newest-first while retaining manual session-ID
+entry. **Start New Session** in the menu-bar popover creates a backend session
+and immediately makes it the current session.
+
 ## Capture behavior
 
 - **Capture Now** and the configurable native global multi-click trigger both call the same
