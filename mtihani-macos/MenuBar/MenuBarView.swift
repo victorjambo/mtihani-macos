@@ -1,31 +1,5 @@
 import SwiftUI
 
-struct MenuBarLabel: View {
-    @ObservedObject var appState: AppState
-
-    var body: some View {
-        Label(
-            "Mtihani – \(appState.captureCoordinator.state.title)",
-            systemImage: statusSymbol
-        )
-    }
-
-    private var statusSymbol: String {
-        switch appState.captureCoordinator.state {
-        case .idle:
-            "circle.fill"
-        case .capturing:
-            "camera.viewfinder"
-        case .uploading:
-            "arrow.up.circle.fill"
-        case .success:
-            "checkmark.circle.fill"
-        case .failed:
-            "exclamationmark.triangle.fill"
-        }
-    }
-}
-
 struct MenuBarView: View {
     @ObservedObject var appState: AppState
 
