@@ -200,7 +200,7 @@ final class CaptureCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.connectionState, .connected)
         XCTAssertEqual(
             coordinator.state,
-            .failed(message: "The screenshot is too large to upload.")
+            .failed(message: "The screenshot exceeds the backend's configured upload limit.")
         )
     }
 

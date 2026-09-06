@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MenuBarView: View {
     @ObservedObject var appState: AppState
+    let openSettings: @MainActor () -> Void
 
     private var coordinator: CaptureCoordinator {
         appState.captureCoordinator
@@ -44,7 +45,9 @@ struct MenuBarView: View {
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(!coordinator.canCapture)
 
-            SettingsLink {
+            Button {
+                openSettings()
+            } label: {
                 Label("Settings…", systemImage: "gearshape")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

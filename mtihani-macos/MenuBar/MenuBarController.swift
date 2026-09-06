@@ -10,6 +10,7 @@ final class MenuBarController: NSObject {
     private let appState: AppState
     private let statusItem: NSStatusItem
     private let popover: NSPopover
+    private var settingsWindowController: NSWindowController?
     private var cancellables = Set<AnyCancellable>()
 
     init(appState: AppState) {
@@ -30,7 +31,12 @@ final class MenuBarController: NSObject {
         popover.animates = true
         popover.contentSize = NSSize(width: 300, height: 390)
         popover.contentViewController = NSHostingController(
-            rootView: MenuBarView(appState: appState)
+            rootView: MenuBarView(
+                appState: appState,
+                openSettings: { [weak self] in
+                    self?.showSettings()
+                }
+            )
         )
     }
 
@@ -91,6 +97,31 @@ final class MenuBarController: NSObject {
                 preferredEdge: .minY
             )
         }
+    }
+
+    private func showSettings() {
+        popover.performClose(nil)
+
+        let windowController: NSWindowController
+        if let settingsWindowController {
+            windowController = settingsWindowController
+        } else {
+            let hostingController = NSHostingController(
+                rootView: SettingsView(appState: appState)
+            )
+            let window = NSWindow(contentViewController: hostingController)
+            window.title = "Mtihani Settings"
+            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.isReleasedWhenClosed = false
+            window.center()
+
+            windowController = NSWindowController(window: window)
+            settingsWindowController = windowController
+        }
+
+        NSApp.activate()
+        windowController.showWindow(nil)
+        windowController.window?.makeKeyAndOrderFront(nil)
     }
 
     deinit {

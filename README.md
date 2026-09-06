@@ -31,6 +31,8 @@ deployments should use HTTPS.
 - The global click is observed and is never consumed or replaced.
 - Only one capture can run at a time.
 - Screenshots are encoded as PNG in memory and are not written to disk.
+- The macOS client does not impose its own upload-size limit; the backend's
+  `MAX_CAPTURE_SIZE_MB` setting controls the accepted size.
 - The client stops after the backend returns `202 Accepted`; it does not poll
   for analysis results or connect to SSE.
 

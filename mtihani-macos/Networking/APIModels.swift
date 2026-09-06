@@ -41,7 +41,7 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
         case .sessionClosed:
             "The session is closed."
         case .captureTooLarge:
-            "The screenshot is too large to upload."
+            "The screenshot exceeds the backend's configured upload limit."
         case .serverError:
             "The backend encountered an error. Please try again."
         case .transport:
