@@ -59,6 +59,7 @@ enum PreferredLanguage: String, CaseIterable, Identifiable, Sendable {
 enum AppConfigurationError: LocalizedError, Equatable {
     case invalidBackendURL
     case insecureRemoteBackend
+    case missingAPIKey
 
     var errorDescription: String? {
         switch self {
@@ -66,14 +67,17 @@ enum AppConfigurationError: LocalizedError, Equatable {
             "Enter a valid HTTP or HTTPS backend URL."
         case .insecureRemoteBackend:
             "Use HTTPS for remote backends. HTTP is allowed only for local development."
+        case .missingAPIKey:
+            "Enter the backend API key."
         }
     }
 }
 
 struct AppConfiguration: Equatable, Sendable {
     let apiBaseURL: URL
+    let apiKey: String
 
-    init(backendURL: String) throws {
+    init(backendURL: String, apiKey: String) throws {
         let value = backendURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard
             var components = URLComponents(string: value),
@@ -106,7 +110,13 @@ struct AppConfiguration: Equatable, Sendable {
             throw AppConfigurationError.invalidBackendURL
         }
 
+        let trimmedAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedAPIKey.isEmpty else {
+            throw AppConfigurationError.missingAPIKey
+        }
+
         apiBaseURL = url
+        self.apiKey = trimmedAPIKey
     }
 }
 
@@ -122,6 +132,10 @@ final class AppSettings: ObservableObject {
 
     @Published var sessionID: String {
         didSet { defaults.set(sessionID, forKey: Keys.sessionID) }
+    }
+
+    @Published var apiKey: String {
+        didSet { defaults.set(apiKey, forKey: Keys.apiKey) }
     }
 
     @Published var preferredLanguage: PreferredLanguage {
@@ -146,9 +160,15 @@ final class AppSettings: ObservableObject {
         sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    var trimmedAPIKey: String {
+        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var configuration: Result<AppConfiguration, AppConfigurationError> {
         do {
-            return .success(try AppConfiguration(backendURL: backendURL))
+            return .success(
+                try AppConfiguration(backendURL: backendURL, apiKey: apiKey)
+            )
         } catch let error as AppConfigurationError {
             return .failure(error)
         } catch {
@@ -163,6 +183,7 @@ final class AppSettings: ObservableObject {
         backendURL = defaults.string(forKey: Keys.backendURL)
             ?? Self.developmentBackendURL
         sessionID = defaults.string(forKey: Keys.sessionID) ?? ""
+        apiKey = defaults.string(forKey: Keys.apiKey) ?? ""
         preferredLanguage = defaults
             .string(forKey: Keys.preferredLanguage)
             .flatMap(PreferredLanguage.init(rawValue:))
@@ -186,6 +207,7 @@ final class AppSettings: ObservableObject {
     private enum Keys {
         static let backendURL = "settings.backendURL"
         static let sessionID = "settings.sessionID"
+        static let apiKey = "settings.apiKey"
         static let preferredLanguage = "settings.preferredLanguage"
         static let isTripleClickEnabled = "settings.tripleClickEnabled"
         static let requiredClickCount = "settings.requiredClickCount"

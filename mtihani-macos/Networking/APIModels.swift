@@ -23,6 +23,7 @@ nonisolated struct AcceptedCapture: Decodable, Equatable, Sendable {
 nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
     case invalidURL
     case badRequest
+    case unauthorized
     case invalidSession
     case sessionClosed
     case captureTooLarge
@@ -36,6 +37,8 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
             "The backend URL is invalid."
         case .badRequest:
             "The backend rejected the request."
+        case .unauthorized:
+            "The API key is missing or incorrect."
         case .invalidSession:
             "The session does not exist."
         case .sessionClosed:
@@ -55,6 +58,8 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
         switch statusCode {
         case 400:
             .badRequest
+        case 401:
+            .unauthorized
         case 404:
             .invalidSession
         case 409:

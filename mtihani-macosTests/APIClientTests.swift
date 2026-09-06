@@ -3,9 +3,10 @@ import XCTest
 
 final class APIClientTests: XCTestCase {
     private let baseURL = URL(string: "https://api.example.com/api/")!
+    private let apiKey = "test-api-key"
 
     func testSessionRequestUsesExpectedMethodAndURL() throws {
-        let request = try APIRequestBuilder(baseURL: baseURL)
+        let request = try APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
             .getSessionRequest(id: "session/id")
 
         XCTAssertEqual(request.httpMethod, "GET")
@@ -17,10 +18,11 @@ final class APIClientTests: XCTestCase {
             request.value(forHTTPHeaderField: "Accept"),
             "application/json"
         )
+        XCTAssertEqual(request.value(forHTTPHeaderField: "x-api-key"), apiKey)
     }
 
     func testListAndCreateSessionRequestsUseCollectionURL() throws {
-        let builder = APIRequestBuilder(baseURL: baseURL)
+        let builder = APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
         let listRequest = try builder.listSessionsRequest()
         let createRequest = try builder.createSessionRequest()
 
@@ -34,7 +36,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testUploadRequestBuildsPNGMultipartBodyWithLanguage() throws {
-        let request = try APIRequestBuilder(baseURL: baseURL)
+        let request = try APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
             .uploadCaptureRequest(
                 sessionId: "session-123",
                 screenshot: Data("PNG-DATA".utf8),
@@ -66,7 +68,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testUploadRequestOmitsAutomaticLanguageField() throws {
-        let request = try APIRequestBuilder(baseURL: baseURL)
+        let request = try APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
             .uploadCaptureRequest(
                 sessionId: "session-123",
                 screenshot: Data("PNG-DATA".utf8),
@@ -98,6 +100,7 @@ final class APIClientTests: XCTestCase {
         )
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
+            apiKey: apiKey,
             transport: transport
         )
 
@@ -117,6 +120,7 @@ final class APIClientTests: XCTestCase {
         let transport = MockHTTPTransport()
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
+            apiKey: apiKey,
             transport: transport
         )
 
@@ -144,6 +148,7 @@ final class APIClientTests: XCTestCase {
         )
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
+            apiKey: apiKey,
             transport: transport
         )
 
@@ -161,6 +166,7 @@ final class APIClientTests: XCTestCase {
         )
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
+            apiKey: apiKey,
             transport: transport
         )
 
@@ -189,6 +195,7 @@ final class APIClientTests: XCTestCase {
         transport.statusCode = 409
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
+            apiKey: apiKey,
             transport: transport
         )
 

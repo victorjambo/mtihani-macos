@@ -51,8 +51,11 @@ final class AppState: ObservableObject {
         let screenCapturer = ScreenCaptureService(
             permissionService: permissions
         )
-        let apiClientFactory: MtihaniAPIClientFactory = { baseURL in
-            URLSessionMtihaniAPIClient(baseURL: baseURL)
+        let apiClientFactory: MtihaniAPIClientFactory = { configuration in
+            URLSessionMtihaniAPIClient(
+                baseURL: configuration.apiBaseURL,
+                apiKey: configuration.apiKey
+            )
         }
         let captureCoordinator = CaptureCoordinator(
             settings: settings,
@@ -148,7 +151,7 @@ final class AppState: ObservableObject {
     private func makeAPIClient() -> (any MtihaniAPIClient)? {
         switch settings.configuration {
         case let .success(configuration):
-            return apiClientFactory(configuration.apiBaseURL)
+            return apiClientFactory(configuration)
         case let .failure(error):
             sessionOperationError = error.localizedDescription
             return nil
@@ -196,7 +199,8 @@ final class AppState: ObservableObject {
                 guard let self else { return }
                 self.handleConnectionSettingsChange(
                     sessionID: sessionID,
-                    backendURL: self.settings.backendURL
+                    backendURL: self.settings.backendURL,
+                    apiKey: self.settings.apiKey
                 )
             }
             .store(in: &cancellables)
@@ -207,7 +211,20 @@ final class AppState: ObservableObject {
                 guard let self else { return }
                 self.handleConnectionSettingsChange(
                     sessionID: self.settings.sessionID,
-                    backendURL: backendURL
+                    backendURL: backendURL,
+                    apiKey: self.settings.apiKey
+                )
+            }
+            .store(in: &cancellables)
+
+        settings.$apiKey
+            .dropFirst()
+            .sink { [weak self] apiKey in
+                guard let self else { return }
+                self.handleConnectionSettingsChange(
+                    sessionID: self.settings.sessionID,
+                    backendURL: self.settings.backendURL,
+                    apiKey: apiKey
                 )
             }
             .store(in: &cancellables)
@@ -234,13 +251,15 @@ final class AppState: ObservableObject {
 
     private func handleConnectionSettingsChange(
         sessionID: String,
-        backendURL: String
+        backendURL: String,
+        apiKey: String
     ) {
         startupValidationTask?.cancel()
         startupValidationTask = nil
         captureCoordinator.settingsDidChange(
             sessionID: sessionID,
-            backendURL: backendURL
+            backendURL: backendURL,
+            apiKey: apiKey
         )
         settingsValidationTask?.cancel()
 
@@ -250,7 +269,7 @@ final class AppState: ObservableObject {
         guard
             isStarted,
             !trimmedSessionID.isEmpty,
-            (try? AppConfiguration(backendURL: backendURL)) != nil
+            (try? AppConfiguration(backendURL: backendURL, apiKey: apiKey)) != nil
         else {
             return
         }

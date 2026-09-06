@@ -24,6 +24,7 @@ final class AppSettingsTests: XCTestCase {
 
         XCTAssertEqual(settings.backendURL, "http://localhost:5173/api")
         XCTAssertEqual(settings.sessionID, "")
+        XCTAssertEqual(settings.apiKey, "")
         XCTAssertEqual(settings.preferredLanguage, .automatic)
         XCTAssertTrue(settings.isTripleClickEnabled)
         XCTAssertEqual(settings.requiredClickCount, 3)
@@ -33,6 +34,7 @@ final class AppSettingsTests: XCTestCase {
         var settings: AppSettings? = AppSettings(defaults: defaults)
         settings?.backendURL = "https://api.example.com/api/"
         settings?.sessionID = " 67df49c6-c3bf-40d5-ab0b-cd91bbad0f32 "
+        settings?.apiKey = " secret-api-key "
         settings?.preferredLanguage = .python
         settings?.isTripleClickEnabled = false
         settings?.requiredClickCount = 4
@@ -46,6 +48,7 @@ final class AppSettingsTests: XCTestCase {
             "67df49c6-c3bf-40d5-ab0b-cd91bbad0f32"
         )
         XCTAssertEqual(restored.preferredLanguage, .python)
+        XCTAssertEqual(restored.trimmedAPIKey, "secret-api-key")
         XCTAssertFalse(restored.isTripleClickEnabled)
         XCTAssertEqual(restored.requiredClickCount, 4)
     }
@@ -58,7 +61,8 @@ final class AppSettingsTests: XCTestCase {
 
     func testConfigurationNormalizesTrailingSlash() throws {
         let configuration = try AppConfiguration(
-            backendURL: " https://api.example.com/api/// "
+            backendURL: " https://api.example.com/api/// ",
+            apiKey: "test-api-key"
         )
 
         XCTAssertEqual(
@@ -69,26 +73,29 @@ final class AppSettingsTests: XCTestCase {
 
     func testConfigurationRejectsCredentialsAndUnsupportedSchemes() {
         XCTAssertThrowsError(
-            try AppConfiguration(backendURL: "ftp://api.example.com/api")
+            try AppConfiguration(backendURL: "ftp://api.example.com/api", apiKey: "key")
         )
         XCTAssertThrowsError(
-            try AppConfiguration(backendURL: "https://user:secret@example.com/api")
+            try AppConfiguration(
+                backendURL: "https://user:secret@example.com/api",
+                apiKey: "key"
+            )
         )
     }
 
     func testConfigurationAllowsHTTPOnlyForLoopbackDevelopmentHosts() throws {
         XCTAssertNoThrow(
-            try AppConfiguration(backendURL: "http://localhost:5173/api")
+            try AppConfiguration(backendURL: "http://localhost:5173/api", apiKey: "key")
         )
         XCTAssertNoThrow(
-            try AppConfiguration(backendURL: "http://127.0.0.1:5173/api")
+            try AppConfiguration(backendURL: "http://127.0.0.1:5173/api", apiKey: "key")
         )
         XCTAssertNoThrow(
-            try AppConfiguration(backendURL: "http://[::1]:5173/api")
+            try AppConfiguration(backendURL: "http://[::1]:5173/api", apiKey: "key")
         )
 
         XCTAssertThrowsError(
-            try AppConfiguration(backendURL: "http://api.example.com/api")
+            try AppConfiguration(backendURL: "http://api.example.com/api", apiKey: "key")
         ) { error in
             XCTAssertEqual(
                 error as? AppConfigurationError,

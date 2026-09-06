@@ -250,7 +250,8 @@ final class CaptureCoordinatorTests: XCTestCase {
         settings.sessionID = "new-session"
         coordinator.settingsDidChange(
             sessionID: "new-session",
-            backendURL: settings.backendURL
+            backendURL: settings.backendURL,
+            apiKey: settings.apiKey
         )
         apiClient.resumeUpload()
         await capture.value
@@ -262,6 +263,7 @@ final class CaptureCoordinatorTests: XCTestCase {
     private func configuredSettings() -> AppSettings {
         let settings = AppSettings(defaults: defaults)
         settings.sessionID = "session-123"
+        settings.apiKey = "test-api-key"
         return settings
     }
 

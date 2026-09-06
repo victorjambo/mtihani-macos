@@ -37,11 +37,13 @@ nonisolated struct APIRequestBuilder: Sendable {
     )
 
     let baseURL: URL
+    let apiKey: String
 
     func listSessionsRequest() throws -> URLRequest {
         var request = URLRequest(url: try endpointURL(pathComponents: ["sessions"]))
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
         return request
     }
 
@@ -49,6 +51,7 @@ nonisolated struct APIRequestBuilder: Sendable {
         var request = URLRequest(url: try endpointURL(pathComponents: ["sessions"]))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
         return request
     }
 
@@ -56,6 +59,7 @@ nonisolated struct APIRequestBuilder: Sendable {
         var request = URLRequest(url: try endpointURL(pathComponents: ["sessions", id]))
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        authorize(&request)
         return request
     }
 
@@ -81,8 +85,13 @@ nonisolated struct APIRequestBuilder: Sendable {
             "multipart/form-data; boundary=\(boundary)",
             forHTTPHeaderField: "Content-Type"
         )
+        authorize(&request)
         request.httpBody = form.finalize()
         return request
+    }
+
+    private func authorize(_ request: inout URLRequest) {
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
     }
 
     private func endpointURL(pathComponents: [String]) throws -> URL {
@@ -137,20 +146,22 @@ final class URLSessionMtihaniAPIClient: MtihaniAPIClient {
 
     init(
         baseURL: URL,
+        apiKey: String,
         urlSession: URLSession = .shared,
         decoder: JSONDecoder = JSONDecoder()
     ) {
-        requestBuilder = APIRequestBuilder(baseURL: baseURL)
+        requestBuilder = APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
         transport = URLSessionHTTPTransport(urlSession: urlSession)
         self.decoder = decoder
     }
 
     init(
         baseURL: URL,
+        apiKey: String,
         transport: any HTTPTransport,
         decoder: JSONDecoder = JSONDecoder()
     ) {
-        requestBuilder = APIRequestBuilder(baseURL: baseURL)
+        requestBuilder = APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
         self.transport = transport
         self.decoder = decoder
     }

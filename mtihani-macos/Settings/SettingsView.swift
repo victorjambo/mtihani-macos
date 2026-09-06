@@ -17,6 +17,9 @@ struct SettingsView: View {
                 TextField("Backend URL", text: binding(for: \AppSettings.backendURL))
                     .textFieldStyle(.roundedBorder)
 
+                SecureField("API Key", text: binding(for: \AppSettings.apiKey))
+                    .textFieldStyle(.roundedBorder)
+
                 Text("Include the API path, for example http://localhost:5173/api.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -122,7 +125,7 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
-        .frame(width: 480, height: 540)
+        .frame(width: 480, height: 580)
         .onAppear {
             appState.start()
             appState.permissions.refreshScreenRecordingPermission()

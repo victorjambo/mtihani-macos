@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import OSLog
 
-typealias MtihaniAPIClientFactory = @MainActor (URL) -> any MtihaniAPIClient
+typealias MtihaniAPIClientFactory = @MainActor (AppConfiguration) -> any MtihaniAPIClient
 
 @MainActor
 final class CaptureCoordinator: ObservableObject {
@@ -82,7 +82,7 @@ final class CaptureCoordinator: ObservableObject {
             }
 
             state = .uploading
-            let client = apiClientFactory(requestContext.configuration.apiBaseURL)
+            let client = apiClientFactory(requestContext.configuration)
             let acceptedCapture = try await client.uploadCapture(
                 sessionId: requestContext.sessionID,
                 screenshot: image.data,
@@ -112,7 +112,7 @@ final class CaptureCoordinator: ObservableObject {
         connectionState = .connecting
 
         do {
-            let client = apiClientFactory(requestContext.configuration.apiBaseURL)
+            let client = apiClientFactory(requestContext.configuration)
             let session = try await client.getSession(id: requestContext.sessionID)
             guard isCurrent(requestContext) else {
                 return
@@ -140,7 +140,7 @@ final class CaptureCoordinator: ObservableObject {
         }
     }
 
-    func settingsDidChange(sessionID: String, backendURL: String) {
+    func settingsDidChange(sessionID: String, backendURL: String, apiKey: String) {
         closedSessionID = nil
         resetTask?.cancel()
 
@@ -148,7 +148,7 @@ final class CaptureCoordinator: ObservableObject {
             connectionState = .notConfigured
         } else {
             do {
-                _ = try AppConfiguration(backendURL: backendURL)
+                _ = try AppConfiguration(backendURL: backendURL, apiKey: apiKey)
                 connectionState = .disconnected
             } catch {
                 connectionState = .invalidConfiguration
@@ -209,12 +209,14 @@ final class CaptureCoordinator: ObservableObject {
         switch error {
         case APIError.badRequest, APIError.invalidSession:
             connectionState = .invalidSession
+        case APIError.unauthorized:
+            connectionState = .invalidConfiguration
         case APIError.sessionClosed:
             closedSessionID = sessionID
             connectionState = .sessionClosed
         case APIError.transport, APIError.serverError:
             connectionState = .serverUnavailable
-        case APIError.invalidURL:
+        case APIError.invalidURL, APIError.unauthorized:
             connectionState = .invalidConfiguration
         default:
             connectionState = .disconnected

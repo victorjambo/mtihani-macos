@@ -69,6 +69,7 @@ final class AppStateTests: XCTestCase {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let settings = AppSettings(defaults: defaults)
+        settings.apiKey = "test-api-key"
         let permissions = PermissionsService(
             checkScreenRecordingAccess: { true },
             requestScreenRecordingAccess: { true },
