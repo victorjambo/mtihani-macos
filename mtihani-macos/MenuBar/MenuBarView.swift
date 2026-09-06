@@ -24,7 +24,10 @@ struct MenuBarView: View {
             LabeledContent("Session", value: coordinator.connectionState.title)
                 .font(.callout)
 
-            LabeledContent("Triple-click", value: appState.triggerStatusTitle)
+            LabeledContent(
+                "Click trigger",
+                value: "\(appState.settings.requiredClickCount) clicks · \(appState.triggerStatusTitle)"
+            )
                 .font(.callout)
 
             if appState.permissions.screenRecordingState != .granted {

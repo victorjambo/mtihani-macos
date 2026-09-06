@@ -1,7 +1,7 @@
 # Mtihani for macOS
 
 Mtihani is a lightweight menu-bar companion for permitted coding-practice and
-mock-assessment sessions. A manual command or observed global triple-click
+mock-assessment sessions. A manual command or observed global multi-click
 captures the main display, uploads one PNG to the configured backend session,
 and returns to its waiting state after the backend accepts the capture.
 
@@ -26,8 +26,10 @@ deployments should use HTTPS.
 
 ## Capture behavior
 
-- **Capture Now** and a native global triple left-click both call the same
+- **Capture Now** and the configurable native global multi-click trigger both call the same
   capture coordinator.
+- The click trigger defaults to 3 clicks and can be set from 2 to 5 clicks in
+  Settings. Changes take effect immediately.
 - The global click is observed and is never consumed or replaced.
 - Only one capture can run at a time.
 - Screenshots are encoded as PNG in memory and are not written to disk.

@@ -53,7 +53,9 @@ final class AppState: ObservableObject {
                 URLSessionMtihaniAPIClient(baseURL: baseURL)
             }
         )
-        let triggerMonitor = GlobalClickMonitor {
+        let triggerMonitor = GlobalClickMonitor(
+            requiredClickCount: { settings.requiredClickCount }
+        ) {
             Task {
                 await captureCoordinator.captureAndUpload()
             }

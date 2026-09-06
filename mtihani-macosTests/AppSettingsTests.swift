@@ -26,6 +26,7 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.sessionID, "")
         XCTAssertEqual(settings.preferredLanguage, .automatic)
         XCTAssertTrue(settings.isTripleClickEnabled)
+        XCTAssertEqual(settings.requiredClickCount, 3)
     }
 
     func testValuesPersistAcrossInstances() {
@@ -34,6 +35,7 @@ final class AppSettingsTests: XCTestCase {
         settings?.sessionID = " 67df49c6-c3bf-40d5-ab0b-cd91bbad0f32 "
         settings?.preferredLanguage = .python
         settings?.isTripleClickEnabled = false
+        settings?.requiredClickCount = 4
         settings = nil
 
         let restored = AppSettings(defaults: defaults)
@@ -45,6 +47,13 @@ final class AppSettingsTests: XCTestCase {
         )
         XCTAssertEqual(restored.preferredLanguage, .python)
         XCTAssertFalse(restored.isTripleClickEnabled)
+        XCTAssertEqual(restored.requiredClickCount, 4)
+    }
+
+    func testPersistedClickCountIsClampedToSupportedRange() {
+        defaults.set(99, forKey: "settings.requiredClickCount")
+
+        XCTAssertEqual(AppSettings(defaults: defaults).requiredClickCount, 5)
     }
 
     func testConfigurationNormalizesTrailingSlash() throws {

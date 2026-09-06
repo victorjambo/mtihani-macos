@@ -113,6 +113,8 @@ struct AppConfiguration: Equatable, Sendable {
 @MainActor
 final class AppSettings: ObservableObject {
     static let developmentBackendURL = "http://localhost:5173/api"
+    static let defaultRequiredClickCount = 3
+    static let requiredClickCountRange = 2 ... 5
 
     @Published var backendURL: String {
         didSet { defaults.set(backendURL, forKey: Keys.backendURL) }
@@ -131,6 +133,12 @@ final class AppSettings: ObservableObject {
     @Published var isTripleClickEnabled: Bool {
         didSet {
             defaults.set(isTripleClickEnabled, forKey: Keys.isTripleClickEnabled)
+        }
+    }
+
+    @Published var requiredClickCount: Int {
+        didSet {
+            defaults.set(requiredClickCount, forKey: Keys.requiredClickCount)
         }
     }
 
@@ -165,6 +173,14 @@ final class AppSettings: ObservableObject {
         } else {
             isTripleClickEnabled = defaults.bool(forKey: Keys.isTripleClickEnabled)
         }
+
+        let savedClickCount = defaults.object(forKey: Keys.requiredClickCount)
+            .flatMap { $0 as? NSNumber }?
+            .intValue ?? Self.defaultRequiredClickCount
+        requiredClickCount = min(
+            max(savedClickCount, Self.requiredClickCountRange.lowerBound),
+            Self.requiredClickCountRange.upperBound
+        )
     }
 
     private enum Keys {
@@ -172,5 +188,6 @@ final class AppSettings: ObservableObject {
         static let sessionID = "settings.sessionID"
         static let preferredLanguage = "settings.preferredLanguage"
         static let isTripleClickEnabled = "settings.tripleClickEnabled"
+        static let requiredClickCount = "settings.requiredClickCount"
     }
 }

@@ -55,9 +55,16 @@ struct SettingsView: View {
 
             Section("Capture") {
                 Toggle(
-                    "Triple-click anywhere to capture",
+                    "Click anywhere to capture",
                     isOn: binding(for: \AppSettings.isTripleClickEnabled)
                 )
+
+                Stepper(
+                    "Required clicks: \(settings.requiredClickCount)",
+                    value: binding(for: \AppSettings.requiredClickCount),
+                    in: AppSettings.requiredClickCountRange
+                )
+                .disabled(!settings.isTripleClickEnabled)
 
                 LabeledContent(
                     "Global Click Monitor",

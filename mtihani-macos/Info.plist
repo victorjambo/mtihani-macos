@@ -30,7 +30,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 	<key>NSInputMonitoringUsageDescription</key>
-	<string>Mtihani observes left-click events only to detect the optional triple-click capture trigger.</string>
+	<string>Mtihani observes left-click events only to detect the optional configurable multi-click capture trigger.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSScreenCaptureUsageDescription</key>

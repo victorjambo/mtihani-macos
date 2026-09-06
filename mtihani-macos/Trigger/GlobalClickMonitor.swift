@@ -6,8 +6,8 @@
 import AppKit
 import OSLog
 
-/// Observes global left-button mouse-down events and reports native
-/// triple-clicks without consuming or replacing the original events.
+/// Observes global left-button mouse-down events and reports the configured
+/// native click count without consuming or replacing the original events.
 @MainActor
 final class GlobalClickMonitor: CaptureTriggerMonitor {
     private static let logger = Logger(
@@ -15,7 +15,7 @@ final class GlobalClickMonitor: CaptureTriggerMonitor {
         category: "trigger"
     )
 
-    private let interpreter: TripleClickInterpreter
+    private let requiredClickCount: @MainActor @Sendable () -> Int
     private let onTrigger: @MainActor @Sendable () -> Void
     private var globalEventMonitor: Any?
     private var localEventMonitor: Any?
@@ -25,10 +25,10 @@ final class GlobalClickMonitor: CaptureTriggerMonitor {
     }
 
     init(
-        interpreter: TripleClickInterpreter = TripleClickInterpreter(),
+        requiredClickCount: @escaping @MainActor @Sendable () -> Int = { 3 },
         onTrigger: @escaping @MainActor @Sendable () -> Void
     ) {
-        self.interpreter = interpreter
+        self.requiredClickCount = requiredClickCount
         self.onTrigger = onTrigger
     }
 
@@ -38,12 +38,15 @@ final class GlobalClickMonitor: CaptureTriggerMonitor {
             return true
         }
 
-        let interpreter = interpreter
+        let requiredClickCount = requiredClickCount
         let onTrigger = onTrigger
 
         guard let globalMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: .leftMouseDown,
             handler: { event in
+                let interpreter = TripleClickInterpreter(
+                    requiredClickCount: requiredClickCount()
+                )
                 guard interpreter.isTrigger(button: .left, clickCount: event.clickCount) else {
                     return
                 }
@@ -53,13 +56,16 @@ final class GlobalClickMonitor: CaptureTriggerMonitor {
                 }
             }
         ) else {
-            Self.logger.error("Unable to register the global triple-click monitor")
+            Self.logger.error("Unable to register the global click monitor")
             return false
         }
 
         guard let localMonitor = NSEvent.addLocalMonitorForEvents(
             matching: .leftMouseDown,
             handler: { event in
+                let interpreter = TripleClickInterpreter(
+                    requiredClickCount: requiredClickCount()
+                )
                 if interpreter.isTrigger(button: .left, clickCount: event.clickCount) {
                     Task { @MainActor in
                         onTrigger()
@@ -69,13 +75,13 @@ final class GlobalClickMonitor: CaptureTriggerMonitor {
             }
         ) else {
             NSEvent.removeMonitor(globalMonitor)
-            Self.logger.error("Unable to register the local triple-click monitor")
+            Self.logger.error("Unable to register the local click monitor")
             return false
         }
 
         globalEventMonitor = globalMonitor
         localEventMonitor = localMonitor
-        Self.logger.info("Global triple-click monitoring started")
+        Self.logger.info("Global click monitoring started")
         return true
     }
 
@@ -88,7 +94,7 @@ final class GlobalClickMonitor: CaptureTriggerMonitor {
             NSEvent.removeMonitor(localEventMonitor)
             self.localEventMonitor = nil
         }
-        Self.logger.info("Global triple-click monitoring stopped")
+        Self.logger.info("Global click monitoring stopped")
     }
 
     deinit {
