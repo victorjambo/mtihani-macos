@@ -6,12 +6,14 @@ import SwiftUI
 /// an AppKit popover. Keeping presentation in AppKit avoids relying on
 /// `MenuBarExtra` to activate an LSUIElement application.
 @MainActor
-final class MenuBarController: NSObject {
+final class MenuBarController: NSObject, NSPopoverDelegate {
     private let appState: AppState
     private let statusItem: NSStatusItem
     private let popover: NSPopover
     private var settingsWindowController: NSWindowController?
     private var cancellables = Set<AnyCancellable>()
+    private var globalClickMonitor: Any?
+    private var localClickMonitor: Any?
 
     init(appState: AppState) {
         self.appState = appState
@@ -28,6 +30,7 @@ final class MenuBarController: NSObject {
 
     private func configurePopover() {
         popover.behavior = .transient
+        popover.delegate = self
         popover.animates = true
         popover.contentSize = NSSize(width: 300, height: 390)
         popover.contentViewController = NSHostingController(
@@ -38,6 +41,40 @@ final class MenuBarController: NSObject {
                 }
             )
         )
+    }
+
+    func popoverDidShow(_ notification: Notification) {
+        stopMonitoringOutsideClicks()
+        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
+            self?.popover.performClose(nil)
+        }
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
+            guard let self, self.popover.isShown else { return event }
+            if event.window === self.popover.contentViewController?.view.window {
+                return event
+            }
+            // The status button handles its own toggle on mouse-up. Closing on
+            // mouse-down here would cause that toggle to reopen the popover.
+            if let button = self.statusItem.button,
+               event.window === button.window,
+               button.bounds.contains(button.convert(event.locationInWindow, from: nil)) {
+                return event
+            }
+            self.popover.performClose(nil)
+            return event
+        }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        stopMonitoringOutsideClicks()
+    }
+
+    private func stopMonitoringOutsideClicks() {
+        if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
+        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
+        globalClickMonitor = nil
+        localClickMonitor = nil
     }
 
     private func configureStatusItem() {
@@ -125,6 +162,8 @@ final class MenuBarController: NSObject {
     }
 
     deinit {
+        if let globalClickMonitor { NSEvent.removeMonitor(globalClickMonitor) }
+        if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
         NSStatusBar.system.removeStatusItem(statusItem)
     }
 }
