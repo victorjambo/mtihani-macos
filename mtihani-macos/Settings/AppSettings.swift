@@ -68,7 +68,7 @@ enum AppConfigurationError: LocalizedError, Equatable {
         case .insecureRemoteBackend:
             "Use HTTPS for remote backends. HTTP is allowed only for local development."
         case .missingAPIKey:
-            "Enter the backend API key."
+            "Enter the Mtihani Client Key generated in web Settings."
         }
     }
 }

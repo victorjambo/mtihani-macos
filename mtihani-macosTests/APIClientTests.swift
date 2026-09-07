@@ -33,6 +33,10 @@ final class APIClientTests: XCTestCase {
             "https://api.example.com/api/sessions"
         )
         XCTAssertEqual(createRequest.url, listRequest.url)
+        XCTAssertEqual(listRequest.value(forHTTPHeaderField: "x-api-key"), apiKey)
+        XCTAssertEqual(createRequest.value(forHTTPHeaderField: "x-api-key"), apiKey)
+        XCTAssertNil(listRequest.url?.query)
+        XCTAssertNil(createRequest.url?.query)
     }
 
     func testUploadRequestBuildsPNGMultipartBodyWithLanguage() throws {
@@ -55,6 +59,8 @@ final class APIClientTests: XCTestCase {
             request.value(forHTTPHeaderField: "Content-Type"),
             "multipart/form-data; boundary=Boundary-123"
         )
+        XCTAssertEqual(request.value(forHTTPHeaderField: "x-api-key"), apiKey)
+        XCTAssertNil(request.url?.query)
         XCTAssertTrue(
             bodyText.contains(
                 "name=\"screenshot\"; filename=\"capture.png\""

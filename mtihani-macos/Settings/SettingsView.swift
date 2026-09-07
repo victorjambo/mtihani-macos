@@ -17,7 +17,10 @@ struct SettingsView: View {
                 TextField("Backend URL", text: binding(for: \AppSettings.backendURL))
                     .textFieldStyle(.roundedBorder)
 
-                SecureField("API Key", text: binding(for: \AppSettings.apiKey))
+                SecureField(
+                    "Mtihani Client Key",
+                    text: binding(for: \AppSettings.apiKey)
+                )
                     .textFieldStyle(.roundedBorder)
 
                 Text("Include the API path, for example http://localhost:5173/api.")

@@ -15,11 +15,12 @@ and returns to its waiting state after the backend accepts the capture.
 
 1. Open `mtihani-macos.xcodeproj` in Xcode.
 2. Select the `mtihani-macos` scheme and run the app.
-3. Open the menu-bar item, choose **Settings**, and configure the backend API
-   URL, API key, and session ID. The API key must match the backend `API_KEY`
-   environment variable.
-4. Select **Test Connection**.
-5. Grant Screen Recording access when requested. If macOS asks for a relaunch,
+3. Sign in to the Mtihani web app, open **Settings**, generate a **Mtihani
+   Client Key**, and copy it. The plaintext key is shown only once.
+4. Open the menu-bar item, choose **Settings**, and configure the backend API
+   URL, Mtihani Client Key, and session ID.
+5. Select **Test Connection**.
+6. Grant Screen Recording access when requested. If macOS asks for a relaunch,
    quit and start Mtihani again.
 
 The development backend URL defaults to `http://localhost:3000/api`. Production

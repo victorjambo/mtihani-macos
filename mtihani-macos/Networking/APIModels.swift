@@ -38,7 +38,7 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
         case .badRequest:
             "The backend rejected the request."
         case .unauthorized:
-            "The API key is missing or incorrect."
+            "The Mtihani Client Key is missing, invalid, or revoked."
         case .invalidSession:
             "The session does not exist."
         case .sessionClosed:
