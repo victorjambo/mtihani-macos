@@ -1,0 +1,14 @@
+.DS_Store
+build/
+releases/
+*.xcarchive
+*.xcresult
+**/xcuserdata/
+Configuration/*.local.xcconfig
+# Keep signing material outside this repository, even when ignored.
+*.p12
+*.p8
+*.pem
+*.key
+sparkle-private*
+__pycache__/

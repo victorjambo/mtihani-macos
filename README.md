@@ -7,7 +7,7 @@ and returns to its waiting state after the backend accepts the capture.
 
 ## Requirements
 
-- macOS 26.5 or newer, matching the existing project deployment target
+- macOS 15.6 or newer, matching the application target
 - Xcode 26.6 or newer
 - A running Mtihani backend and an active backend session UUID
 
@@ -59,3 +59,19 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 
 The tests use mocks and do not require Screen Recording permission or a live
 backend.
+
+## Application updates
+
+The menu-bar popover includes **Check for Updates…**. Settings includes the
+current version/build and Sparkle's automatic-check/download preferences.
+Checks default to daily; automatic downloads and install-on-quit are opt-in.
+
+The Sparkle public key in `Configuration/Updates.xcconfig` corresponds to the
+`mtihani` signing key in the release Mac's login Keychain. Before distributing,
+securely back up that key and provision the production HTTPS feed.
+Builds with a missing or invalid public key keep update controls unavailable. See
+[application updates and releases](docs/UPDATES.md) for key setup, sandbox
+details, Developer ID/notarization, DMG/appcast generation, private update
+testing, and the production release procedure.
+Current verification results and remaining manual checks are recorded in
+[update verification](docs/UPDATE-VERIFICATION.md).

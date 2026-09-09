@@ -1,0 +1,11 @@
+// Stable HTTPS appcast, independent of the application API.
+// $() prevents xcconfig from treating the URL's // as a comment.
+SPARKLE_FEED_URL = https:/$()/updates.mtihani.app/appcast.xml
+
+// Public key for Keychain account "mtihani", created with Sparkle generate_keys.
+// Keep the corresponding private key in Keychain / secure release secret storage.
+// Test builds may override this setting using -xcconfig / xcodebuild.
+SPARKLE_PUBLIC_ED_KEY = iwA+ZX7T0w56S8td4PKbfL+vMdA0iKfepj70P/TVTyc=
+
+// Required for Developer ID distribution and notarization.
+ENABLE_HARDENED_RUNTIME = YES

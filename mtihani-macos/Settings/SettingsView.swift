@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var appState: AppState
+    let updateManager: UpdateManager
 
     private var settings: AppSettings {
         appState.settings
@@ -21,7 +22,7 @@ struct SettingsView: View {
                     "Mtihani Client Key",
                     text: binding(for: \AppSettings.apiKey)
                 )
-                    .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.roundedBorder)
 
                 Text("Include the API path, for example http://localhost:5173/api.")
                     .font(.caption)
@@ -125,6 +126,8 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            UpdateSettingsView(updateManager: updateManager)
         }
         .formStyle(.grouped)
         .padding()

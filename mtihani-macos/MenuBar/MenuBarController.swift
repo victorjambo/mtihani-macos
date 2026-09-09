@@ -8,6 +8,7 @@ import SwiftUI
 @MainActor
 final class MenuBarController: NSObject, NSPopoverDelegate {
     private let appState: AppState
+    private let updateManager: UpdateManager
     private let statusItem: NSStatusItem
     private let popover: NSPopover
     private var settingsWindowController: NSWindowController?
@@ -15,8 +16,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     private var globalClickMonitor: Any?
     private var localClickMonitor: Any?
 
-    init(appState: AppState) {
+    init(appState: AppState, updateManager: UpdateManager) {
         self.appState = appState
+        self.updateManager = updateManager
         statusItem = NSStatusBar.system.statusItem(
             withLength: NSStatusItem.squareLength
         )
@@ -32,12 +34,16 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
         popover.animates = true
-        popover.contentSize = NSSize(width: 300, height: 390)
+        popover.contentSize = NSSize(width: 300, height: 430)
         popover.contentViewController = NSHostingController(
             rootView: MenuBarView(
                 appState: appState,
+                updateManager: updateManager,
                 openSettings: { [weak self] in
                     self?.showSettings()
+                },
+                closePopover: { [weak self] in
+                    self?.popover.performClose(nil)
                 }
             )
         )
@@ -57,8 +63,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             // The status button handles its own toggle on mouse-up. Closing on
             // mouse-down here would cause that toggle to reopen the popover.
             if let button = self.statusItem.button,
-               event.window === button.window,
-               button.bounds.contains(button.convert(event.locationInWindow, from: nil)) {
+                event.window === button.window,
+                button.bounds.contains(button.convert(event.locationInWindow, from: nil))
+            {
                 return event
             }
             self.popover.performClose(nil)
@@ -91,13 +98,14 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
 
     private func observeCaptureState() {
         appState.captureCoordinator.$state
-            .sink { [weak self] state in
-                self?.updateStatusItem(for: state)
+            .combineLatest(updateManager.$state)
+            .sink { [weak self] state, updateState in
+                self?.updateStatusItem(for: state, updateAvailable: updateState.updateAvailable)
             }
             .store(in: &cancellables)
     }
 
-    private func updateStatusItem(for state: CaptureState) {
+    private func updateStatusItem(for state: CaptureState, updateAvailable: Bool = false) {
         guard let button = statusItem.button else {
             return
         }
@@ -105,8 +113,14 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         let image = NSImage(systemSymbolName: symbolName(for: state), accessibilityDescription: state.title)
         image?.isTemplate = true
         button.image = image
-        button.toolTip = "Mtihani – \(state.title)"
-        button.setAccessibilityLabel("Mtihani – \(state.title)")
+        button.appearsDisabled = false
+        // Retain the capture status image while making background update alerts discoverable.
+        button.title = updateAvailable ? " ·" : ""
+        button.imagePosition = updateAvailable ? .imageLeading : .imageOnly
+        statusItem.length = updateAvailable ? NSStatusItem.variableLength : NSStatusItem.squareLength
+        let label = "Mtihani – \(state.title)" + (updateAvailable ? " – Update available" : "")
+        button.toolTip = label
+        button.setAccessibilityLabel(label)
     }
 
     private func symbolName(for state: CaptureState) -> String {
@@ -144,7 +158,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             windowController = settingsWindowController
         } else {
             let hostingController = NSHostingController(
-                rootView: SettingsView(appState: appState)
+                rootView: SettingsView(appState: appState, updateManager: updateManager)
             )
             let window = NSWindow(contentViewController: hostingController)
             window.title = "Mtihani Settings"

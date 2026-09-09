@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E00000000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = E00000000000000000000002 /* Sparkle */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		D00000000000000000000006 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -19,6 +23,7 @@
 /* Begin PBXFileReference section */
 		C78460BC304C27F600BB0C98 /* mtihani-macos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "mtihani-macos.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D00000000000000000000001 /* mtihani-macosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "mtihani-macosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E00000000000000000000004 /* Configuration/Updates.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configuration/Updates.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -52,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E00000000000000000000001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,6 +74,7 @@
 		C78460B3304C27F600BB0C98 = {
 			isa = PBXGroup;
 			children = (
+				E00000000000000000000004 /* Configuration/Updates.xcconfig */,
 				C78460BE304C27F600BB0C98 /* mtihani-macos */,
 				D00000000000000000000002 /* mtihani-macosTests */,
 				C78460BD304C27F600BB0C98 /* Products */,
@@ -103,6 +110,7 @@
 			);
 			name = "mtihani-macos";
 			packageProductDependencies = (
+				E00000000000000000000002 /* Sparkle */,
 			);
 			productName = "mtihani-macos";
 			productReference = C78460BC304C27F600BB0C98 /* mtihani-macos.app */;
@@ -162,6 +170,9 @@
 			);
 			mainGroup = C78460B3304C27F600BB0C98;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E00000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C78460BD304C27F600BB0C98 /* Products */;
 			projectDirPath = "";
@@ -336,6 +347,7 @@
 		};
 		C78460C8304C27F800BB0C98 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E00000000000000000000004 /* Configuration/Updates.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -372,6 +384,7 @@
 		};
 		C78460C9304C27F800BB0C98 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = E00000000000000000000004 /* Configuration/Updates.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -412,6 +425,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = AYS2LJ2VX4;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -435,6 +449,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = AYS2LJ2VX4;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -483,6 +498,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E00000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.6;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E00000000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E00000000000000000000003 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C78460B4304C27F600BB0C98 /* Project object */;
 }

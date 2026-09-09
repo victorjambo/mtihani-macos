@@ -2,7 +2,9 @@ import SwiftUI
 
 struct MenuBarView: View {
     @ObservedObject var appState: AppState
+    @ObservedObject var updateManager: UpdateManager
     let openSettings: @MainActor () -> Void
+    let closePopover: @MainActor @Sendable () -> Void
 
     private var coordinator: CaptureCoordinator {
         appState.captureCoordinator
@@ -28,7 +30,7 @@ struct MenuBarView: View {
                 "Click trigger",
                 value: "\(appState.settings.requiredClickCount) clicks · \(appState.triggerStatusTitle)"
             )
-                .font(.callout)
+            .font(.callout)
 
             if appState.permissions.screenRecordingState != .granted {
                 permissionNotice
@@ -68,6 +70,17 @@ struct MenuBarView: View {
                 Text(error)
                     .font(.caption)
                     .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            CheckForUpdatesView(updateManager: updateManager, beforeCheck: { closePopover() })
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if updateManager.state.updateAvailable {
+                Text("An update is available. Check for Updates to review it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 

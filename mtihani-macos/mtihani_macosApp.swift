@@ -11,12 +11,18 @@ import SwiftUI
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState.live()
+    let updateManager = UpdateManager()
     private var menuBarController: MenuBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Hosted XCTest runs must never start network services or the live updater.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
+            NSClassFromString("XCTestCase") == nil
+        else { return }
         NSApp.setActivationPolicy(.accessory)
         appState.start()
-        menuBarController = MenuBarController(appState: appState)
+        menuBarController = MenuBarController(appState: appState, updateManager: updateManager)
+        updateManager.start()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -30,7 +36,7 @@ struct MtihaniApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView(appState: appDelegate.appState)
+            SettingsView(appState: appDelegate.appState, updateManager: appDelegate.updateManager)
         }
     }
 }
