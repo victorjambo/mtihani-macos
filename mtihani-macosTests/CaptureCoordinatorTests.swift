@@ -124,7 +124,10 @@ final class CaptureCoordinatorTests: XCTestCase {
     }
 
     func testMissingSessionFailsBeforePermissionOrCapture() async {
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(
+            defaults: defaults,
+            apiBaseURL: "http://localhost:5173/api"
+        )
         let screenCapturer = MockScreenCapturer()
         let permissions = MockPermissionsService(state: .granted)
         let coordinator = makeCoordinator(
@@ -250,7 +253,6 @@ final class CaptureCoordinatorTests: XCTestCase {
         settings.sessionID = "new-session"
         coordinator.settingsDidChange(
             sessionID: "new-session",
-            backendURL: settings.backendURL,
             apiKey: settings.apiKey
         )
         apiClient.resumeUpload()
@@ -261,7 +263,10 @@ final class CaptureCoordinatorTests: XCTestCase {
     }
 
     private func configuredSettings() -> AppSettings {
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(
+            defaults: defaults,
+            apiBaseURL: "http://localhost:5173/api"
+        )
         settings.sessionID = "session-123"
         settings.apiKey = "test-api-key"
         return settings

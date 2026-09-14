@@ -68,7 +68,10 @@ final class AppStateTests: XCTestCase {
         let suiteName = "AppStateTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(
+            defaults: defaults,
+            apiBaseURL: "http://localhost:5173/api"
+        )
         settings.apiKey = "test-api-key"
         let permissions = PermissionsService(
             checkScreenRecordingAccess: { true },

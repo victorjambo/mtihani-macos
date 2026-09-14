@@ -49,5 +49,7 @@
 	<string>NSApplication</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Mtihani captures the main display only when you request a coding-practice screenshot.</string>
+    <key>APIBaseURL</key>
+    <string>$(API_SCHEME)://$(API_HOST)/api</string>
 </dict>
 </plist>

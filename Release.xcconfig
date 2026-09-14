@@ -1,3 +1,19 @@
+//
+//  Release.xcconfig
+//  mtihani-macos
+//
+//  Created by Victor Mutai on 14/09/2026.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+// APP
+API_SCHEME = https
+API_HOST = mtihani-app-production.up.railway.app
+
+// SPARKLE
+
 // Stable HTTPS appcast, independent of the application API.
 // $() prevents xcconfig from treating the URL's // as a comment.
 SPARKLE_FEED_URL = https:/$()/updates.mtihani.app/appcast.xml

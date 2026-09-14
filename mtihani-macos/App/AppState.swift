@@ -199,19 +199,6 @@ final class AppState: ObservableObject {
                 guard let self else { return }
                 self.handleConnectionSettingsChange(
                     sessionID: sessionID,
-                    backendURL: self.settings.backendURL,
-                    apiKey: self.settings.apiKey
-                )
-            }
-            .store(in: &cancellables)
-
-        settings.$backendURL
-            .dropFirst()
-            .sink { [weak self] backendURL in
-                guard let self else { return }
-                self.handleConnectionSettingsChange(
-                    sessionID: self.settings.sessionID,
-                    backendURL: backendURL,
                     apiKey: self.settings.apiKey
                 )
             }
@@ -223,7 +210,6 @@ final class AppState: ObservableObject {
                 guard let self else { return }
                 self.handleConnectionSettingsChange(
                     sessionID: self.settings.sessionID,
-                    backendURL: self.settings.backendURL,
                     apiKey: apiKey
                 )
             }
@@ -251,14 +237,12 @@ final class AppState: ObservableObject {
 
     private func handleConnectionSettingsChange(
         sessionID: String,
-        backendURL: String,
         apiKey: String
     ) {
         startupValidationTask?.cancel()
         startupValidationTask = nil
         captureCoordinator.settingsDidChange(
             sessionID: sessionID,
-            backendURL: backendURL,
             apiKey: apiKey
         )
         settingsValidationTask?.cancel()
@@ -269,7 +253,7 @@ final class AppState: ObservableObject {
         guard
             isStarted,
             !trimmedSessionID.isEmpty,
-            (try? AppConfiguration(backendURL: backendURL, apiKey: apiKey)) != nil
+            case .success = settings.configuration
         else {
             return
         }

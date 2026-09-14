@@ -3,6 +3,7 @@ import XCTest
 
 @MainActor
 final class AppSettingsTests: XCTestCase {
+    private let apiBaseURL = "http://localhost:5173/api"
     private var suiteName: String!
     private var defaults: UserDefaults!
 
@@ -20,9 +21,9 @@ final class AppSettingsTests: XCTestCase {
     }
 
     func testDefaultsAreSuitableForLocalDevelopment() {
-        let settings = AppSettings(defaults: defaults)
+        let settings = AppSettings(defaults: defaults, apiBaseURL: apiBaseURL)
 
-        XCTAssertEqual(settings.backendURL, "http://localhost:5173/api")
+        XCTAssertEqual(settings.apiBaseURL, apiBaseURL)
         XCTAssertEqual(settings.sessionID, "")
         XCTAssertEqual(settings.apiKey, "")
         XCTAssertEqual(settings.preferredLanguage, .automatic)
@@ -31,8 +32,7 @@ final class AppSettingsTests: XCTestCase {
     }
 
     func testValuesPersistAcrossInstances() {
-        var settings: AppSettings? = AppSettings(defaults: defaults)
-        settings?.backendURL = "https://api.example.com/api/"
+        var settings: AppSettings? = AppSettings(defaults: defaults, apiBaseURL: apiBaseURL)
         settings?.sessionID = " 67df49c6-c3bf-40d5-ab0b-cd91bbad0f32 "
         settings?.apiKey = " secret-api-key "
         settings?.preferredLanguage = .python
@@ -40,9 +40,9 @@ final class AppSettingsTests: XCTestCase {
         settings?.requiredClickCount = 4
         settings = nil
 
-        let restored = AppSettings(defaults: defaults)
+        let restored = AppSettings(defaults: defaults, apiBaseURL: apiBaseURL)
 
-        XCTAssertEqual(restored.backendURL, "https://api.example.com/api/")
+        XCTAssertEqual(restored.apiBaseURL, apiBaseURL)
         XCTAssertEqual(
             restored.trimmedSessionID,
             "67df49c6-c3bf-40d5-ab0b-cd91bbad0f32"
@@ -56,12 +56,15 @@ final class AppSettingsTests: XCTestCase {
     func testPersistedClickCountIsClampedToSupportedRange() {
         defaults.set(99, forKey: "settings.requiredClickCount")
 
-        XCTAssertEqual(AppSettings(defaults: defaults).requiredClickCount, 5)
+        XCTAssertEqual(
+            AppSettings(defaults: defaults, apiBaseURL: apiBaseURL).requiredClickCount,
+            5
+        )
     }
 
     func testConfigurationNormalizesTrailingSlash() throws {
         let configuration = try AppConfiguration(
-            backendURL: " https://api.example.com/api/// ",
+            apiBaseURL: " https://api.example.com/api/// ",
             apiKey: "test-api-key"
         )
 
@@ -73,11 +76,11 @@ final class AppSettingsTests: XCTestCase {
 
     func testConfigurationRejectsCredentialsAndUnsupportedSchemes() {
         XCTAssertThrowsError(
-            try AppConfiguration(backendURL: "ftp://api.example.com/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "ftp://api.example.com/api", apiKey: "key")
         )
         XCTAssertThrowsError(
             try AppConfiguration(
-                backendURL: "https://user:secret@example.com/api",
+                apiBaseURL: "https://user:secret@example.com/api",
                 apiKey: "key"
             )
         )
@@ -85,17 +88,17 @@ final class AppSettingsTests: XCTestCase {
 
     func testConfigurationAllowsHTTPOnlyForLoopbackDevelopmentHosts() throws {
         XCTAssertNoThrow(
-            try AppConfiguration(backendURL: "http://localhost:5173/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "http://localhost:5173/api", apiKey: "key")
         )
         XCTAssertNoThrow(
-            try AppConfiguration(backendURL: "http://127.0.0.1:5173/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "http://127.0.0.1:5173/api", apiKey: "key")
         )
         XCTAssertNoThrow(
-            try AppConfiguration(backendURL: "http://[::1]:5173/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "http://[::1]:5173/api", apiKey: "key")
         )
 
         XCTAssertThrowsError(
-            try AppConfiguration(backendURL: "http://api.example.com/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "http://api.example.com/api", apiKey: "key")
         ) { error in
             XCTAssertEqual(
                 error as? AppConfigurationError,

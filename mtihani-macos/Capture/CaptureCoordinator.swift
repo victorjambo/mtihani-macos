@@ -140,7 +140,7 @@ final class CaptureCoordinator: ObservableObject {
         }
     }
 
-    func settingsDidChange(sessionID: String, backendURL: String, apiKey: String) {
+    func settingsDidChange(sessionID: String, apiKey: String) {
         closedSessionID = nil
         resetTask?.cancel()
 
@@ -148,7 +148,7 @@ final class CaptureCoordinator: ObservableObject {
             connectionState = .notConfigured
         } else {
             do {
-                _ = try AppConfiguration(backendURL: backendURL, apiKey: apiKey)
+                _ = try AppConfiguration(apiBaseURL: settings.apiBaseURL, apiKey: apiKey)
                 connectionState = .disconnected
             } catch {
                 connectionState = .invalidConfiguration

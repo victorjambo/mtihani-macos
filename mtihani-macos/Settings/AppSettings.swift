@@ -77,8 +77,8 @@ struct AppConfiguration: Equatable, Sendable {
     let apiBaseURL: URL
     let apiKey: String
 
-    init(backendURL: String, apiKey: String) throws {
-        let value = backendURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    init(apiBaseURL: String, apiKey: String) throws {
+        let value = apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard
             var components = URLComponents(string: value),
             let scheme = components.scheme?.lowercased(),
@@ -115,20 +115,17 @@ struct AppConfiguration: Equatable, Sendable {
             throw AppConfigurationError.missingAPIKey
         }
 
-        apiBaseURL = url
+        self.apiBaseURL = url
         self.apiKey = trimmedAPIKey
     }
 }
 
 @MainActor
 final class AppSettings: ObservableObject {
-    static let developmentBackendURL = "http://localhost:5173/api"
     static let defaultRequiredClickCount = 3
     static let requiredClickCountRange = 2 ... 5
 
-    @Published var backendURL: String {
-        didSet { defaults.set(backendURL, forKey: Keys.backendURL) }
-    }
+    let apiBaseURL: String
 
     @Published var sessionID: String {
         didSet { defaults.set(sessionID, forKey: Keys.sessionID) }
@@ -167,7 +164,7 @@ final class AppSettings: ObservableObject {
     var configuration: Result<AppConfiguration, AppConfigurationError> {
         do {
             return .success(
-                try AppConfiguration(backendURL: backendURL, apiKey: apiKey)
+                try AppConfiguration(apiBaseURL: apiBaseURL, apiKey: apiKey)
             )
         } catch let error as AppConfigurationError {
             return .failure(error)
@@ -178,10 +175,12 @@ final class AppSettings: ObservableObject {
 
     private let defaults: UserDefaults
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        apiBaseURL: String = Bundle.main.object(forInfoDictionaryKey: "APIBaseURL") as? String ?? ""
+    ) {
         self.defaults = defaults
-        backendURL = defaults.string(forKey: Keys.backendURL)
-            ?? Self.developmentBackendURL
+        self.apiBaseURL = apiBaseURL
         sessionID = defaults.string(forKey: Keys.sessionID) ?? ""
         apiKey = defaults.string(forKey: Keys.apiKey) ?? ""
         preferredLanguage = defaults
@@ -205,7 +204,6 @@ final class AppSettings: ObservableObject {
     }
 
     private enum Keys {
-        static let backendURL = "settings.backendURL"
         static let sessionID = "settings.sessionID"
         static let apiKey = "settings.apiKey"
         static let preferredLanguage = "settings.preferredLanguage"

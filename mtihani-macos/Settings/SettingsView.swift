@@ -15,18 +15,12 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Backend") {
-                TextField("Backend URL", text: binding(for: \AppSettings.backendURL))
-                    .textFieldStyle(.roundedBorder)
-
                 SecureField(
                     "Mtihani Client Key",
                     text: binding(for: \AppSettings.apiKey)
                 )
                 .textFieldStyle(.roundedBorder)
 
-                Text("Include the API path, for example http://localhost:5173/api.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
 
             Section("Session") {

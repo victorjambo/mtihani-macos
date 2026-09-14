@@ -17,14 +17,14 @@ and returns to its waiting state after the backend accepts the capture.
 2. Select the `mtihani-macos` scheme and run the app.
 3. Sign in to the Mtihani web app, open **Settings**, generate a **Mtihani
    Client Key**, and copy it. The plaintext key is shown only once.
-4. Open the menu-bar item, choose **Settings**, and configure the backend API
-   URL, Mtihani Client Key, and session ID.
+4. Open the menu-bar item, choose **Settings**, and configure the Mtihani
+   Client Key and session ID.
 5. Select **Test Connection**.
 6. Grant Screen Recording access when requested. If macOS asks for a relaunch,
    quit and start Mtihani again.
 
-The development backend URL defaults to `http://localhost:3000/api`. Production
-deployments should use HTTPS.
+The backend URL comes from the build configuration's `APIBaseURL` value.
+Debug builds use `http://localhost:3000/api`; release builds use HTTPS.
 
 Settings lists backend sessions newest-first while retaining manual session-ID
 entry. **Start New Session** in the menu-bar popover creates a backend session
