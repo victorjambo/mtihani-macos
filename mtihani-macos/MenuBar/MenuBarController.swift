@@ -110,7 +110,16 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             return
         }
 
-        let image = NSImage(systemSymbolName: symbolName(for: state), accessibilityDescription: state.title)
+        let image: NSImage?
+        if state == .idle {
+            image = NSImage(named: "MenuBarIcon")
+            image?.accessibilityDescription = state.title
+        } else {
+            image = NSImage(
+                systemSymbolName: symbolName(for: state),
+                accessibilityDescription: state.title
+            )
+        }
         image?.isTemplate = true
         button.image = image
         button.appearsDisabled = false
