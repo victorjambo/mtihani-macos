@@ -109,7 +109,7 @@ final class DesktopAuthentication: NSObject, ObservableObject,
         attempt = current
         state = .signingIn
         message = nil
-        Task {
+        Task { [self] in
             do {
                 let verifier = try Self.randomSecret()
                 let stateValue = try Self.randomSecret()
