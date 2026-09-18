@@ -49,8 +49,11 @@ inside xcconfig files so `//` is not treated as a comment. The bundled
 `SUFeedURL` and `SUPublicEDKey` expand these settings. There is one feed per
 build, with no runtime channels or backend version API.
 
-The proposed production URL is `https://updates.mtihani.app/appcast.xml`.
-**Provision that HTTPS endpoint or replace it before distributing.** The public
+The production URL is
+`https://mtihani-app-frontend.vercel.app/appcast.xml`. Its source is
+`apps/frontend/public/appcast.xml` in the sibling `mtihani-app` repository and
+Vercel serves it as a static XML asset. Before the first release, replace the
+empty feed with the signed output from `generate-appcast.sh`. The public
 key is configured for the `mtihani` signing key created in this Mac's login
 Keychain on 2026-09-09. Release signing must use that same key. Back it up securely
 before distributing; another Mac must obtain the existing key through secure
@@ -193,7 +196,7 @@ publish it. Existing `dist/` artifacts are unchanged.
 
 ```bash
 export SPARKLE_BIN="$PWD/build/SourcePackages/artifacts/sparkle/Sparkle/bin"
-bash scripts/generate-appcast.sh releases https://updates.mtihani.app/
+bash scripts/generate-appcast.sh releases https://mtihani-app-frontend.vercel.app/
 ```
 
 The official `generate_appcast` extracts versions and metadata and creates
@@ -214,7 +217,8 @@ releases/
 ```
 
 7. Upload the DMG and linked notes first. Verify their HTTPS URLs and content
-   lengths, then upload `appcast.xml` last (atomically where supported).
+   lengths, then replace `apps/frontend/public/appcast.xml` with the generated
+   `appcast.xml` and deploy it last.
    Verify the feed over HTTPS with `curl --fail --proto '=https'
    --proto-redir '=https' --location URL`. Retain immutable archive URLs and
    ensure any redirects also use HTTPS. Never upload credentials or keys.

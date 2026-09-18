@@ -19,7 +19,7 @@ DESKTOP_CALLBACK_SCHEME = com.mtihani.desktop
 
 // Stable HTTPS appcast, independent of the application API.
 // $() prevents xcconfig from treating the URL's // as a comment.
-SPARKLE_FEED_URL = https:/$()/updates.mtihani.app/appcast.xml
+SPARKLE_FEED_URL = https:/$()/mtihani-app-frontend.vercel.app/appcast.xml
 
 // Public key for Keychain account "mtihani", created with Sparkle generate_keys.
 // Keep the corresponding private key in Keychain / secure release secret storage.

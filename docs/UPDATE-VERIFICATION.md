@@ -37,8 +37,8 @@ through a real Sparkle UI session. Follow the private test procedure in
 The initial verification used an unset production public key. A follow-up on
 2026-09-09 generated the `mtihani` key with Sparkle's official tool, kept the
 private key in the login Keychain, and configured its public key in
-`Configuration/Updates.xcconfig`. The proposed feed endpoint still needs
-provisioning: an HTTPS check could not resolve `updates.mtihani.app`. Debug
+`Configuration/Updates.xcconfig`. The feed is now hosted as the frontend's static
+`https://mtihani-app-frontend.vercel.app/appcast.xml` asset. Debug
 tests (47 passing) and the universal Release build passed again, and both built
 Info.plists were verified to contain the generated 32-byte public key.
 The available Apple identity was Apple

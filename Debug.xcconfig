@@ -10,7 +10,7 @@
 
 // APP
 API_SCHEME = http
-API_HOST = localhost:3000
+API_HOST = 127.0.0.1:3000
 FRONTEND_BASE_URL = http:/$()/localhost:5173
 DESKTOP_ENVIRONMENT = development
 DESKTOP_CALLBACK_SCHEME = com.mtihani.desktop.dev
@@ -19,7 +19,7 @@ DESKTOP_CALLBACK_SCHEME = com.mtihani.desktop.dev
 
 // Stable HTTPS appcast, independent of the application API.
 // $() prevents xcconfig from treating the URL's // as a comment.
-SPARKLE_FEED_URL = https:/$()/updates.mtihani.app/appcast.xml
+SPARKLE_FEED_URL = https:/$()/mtihani-app-frontend.vercel.app/appcast.xml
 
 // Public key for Keychain account "mtihani", created with Sparkle generate_keys.
 // Keep the corresponding private key in Keychain / secure release secret storage.
