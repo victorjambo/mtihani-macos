@@ -37,7 +37,7 @@ nonisolated struct APIRequestBuilder: Sendable {
     )
 
     let baseURL: URL
-    let apiKey: String
+    let accessToken: String
 
     func listSessionsRequest() throws -> URLRequest {
         var request = URLRequest(url: try endpointURL(pathComponents: ["sessions"]))
@@ -91,7 +91,7 @@ nonisolated struct APIRequestBuilder: Sendable {
     }
 
     private func authorize(_ request: inout URLRequest) {
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
     }
 
     private func endpointURL(pathComponents: [String]) throws -> URL {
@@ -143,25 +143,26 @@ final class URLSessionMtihaniAPIClient: MtihaniAPIClient {
     private let requestBuilder: APIRequestBuilder
     private let transport: any HTTPTransport
     private let decoder: JSONDecoder
+    var tokenProvider: ((Bool) async throws -> String)?
 
     init(
         baseURL: URL,
-        apiKey: String,
+        accessToken: String,
         urlSession: URLSession = .shared,
         decoder: JSONDecoder = JSONDecoder()
     ) {
-        requestBuilder = APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
+        requestBuilder = APIRequestBuilder(baseURL: baseURL, accessToken: accessToken)
         transport = URLSessionHTTPTransport(urlSession: urlSession)
         self.decoder = decoder
     }
 
     init(
         baseURL: URL,
-        apiKey: String,
+        accessToken: String,
         transport: any HTTPTransport,
         decoder: JSONDecoder = JSONDecoder()
     ) {
-        requestBuilder = APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
+        requestBuilder = APIRequestBuilder(baseURL: baseURL, accessToken: accessToken)
         self.transport = transport
         self.decoder = decoder
     }
@@ -208,18 +209,32 @@ final class URLSessionMtihaniAPIClient: MtihaniAPIClient {
     }
 
     private func send<Response: Decodable>(
-        _ request: URLRequest,
+        _ originalRequest: URLRequest,
         expectedStatusCode: Int
     ) async throws -> Response {
-        let data: Data
-        let response: URLResponse
+        var request = originalRequest
+        var data: Data
+        var response: URLResponse
 
         do {
+            if let tokenProvider {
+                request.setValue(
+                    "Bearer \(try await tokenProvider(false))", forHTTPHeaderField: "Authorization")
+            }
             (data, response) = try await transport.data(for: request)
+            // A 401 comes from the guard before any mutation. Never retry a transport
+            // failure or an authorization (403) response, including uploads/creation.
+            if (response as? HTTPURLResponse)?.statusCode == 401, let tokenProvider {
+                request.setValue(
+                    "Bearer \(try await tokenProvider(true))", forHTTPHeaderField: "Authorization")
+                (data, response) = try await transport.data(for: request)
+            }
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as URLError where error.code == .cancelled {
             throw CancellationError()
+        } catch let error as APIError {
+            throw error
         } catch {
             throw APIError.transport
         }

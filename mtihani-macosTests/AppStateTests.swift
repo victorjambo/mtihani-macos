@@ -1,22 +1,26 @@
 import XCTest
+
 @testable import mtihani_macos
 
 @MainActor
 final class AppStateTests: XCTestCase {
-    func testTriggerPreferenceImmediatelyStartsAndStopsMonitor() {
+    func testTriggerPreferenceImmediatelyStartsAndStopsMonitor() async {
         let context = makeContext()
         defer { context.cleanUp() }
         context.appState.start()
+        await context.appState.selectSession("ready-session")
 
         XCTAssertTrue(context.monitor.isMonitoring)
         XCTAssertEqual(context.monitor.startCount, 1)
 
         context.settings.isTripleClickEnabled = false
+        await Task.yield()
 
         XCTAssertFalse(context.monitor.isMonitoring)
         XCTAssertEqual(context.monitor.stopCount, 1)
 
         context.settings.isTripleClickEnabled = true
+        await Task.yield()
 
         XCTAssertTrue(context.monitor.isMonitoring)
         XCTAssertEqual(context.monitor.startCount, 2)
@@ -32,9 +36,7 @@ final class AppStateTests: XCTestCase {
                 validated.fulfill()
             }
         }
-        context.appState.start()
-
-        context.settings.sessionID = "new-session"
+        await context.appState.selectSession("new-session")
         await fulfillment(of: [validated])
 
         XCTAssertEqual(context.apiClient.requestedSessionIDs, ["new-session"])
@@ -64,6 +66,61 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(context.appState.sessions.first?.id, "created-session")
     }
 
+    func testSignedOutActionsDoNotReachAPI() async {
+        let context = makeContext()
+        defer { context.cleanUp() }
+        context.settings.accessToken = ""
+        await context.appState.refreshSessions()
+        await context.appState.startNewSession()
+        await context.appState.selectSession("private")
+        XCTAssertEqual(context.apiClient.listCalls, 0)
+        XCTAssertEqual(context.apiClient.createCalls, 0)
+        XCTAssertTrue(context.apiClient.requestedSessionIDs.isEmpty)
+    }
+
+    func testNewestEligibleSessionIsSelectedOnlyWithoutRememberedSelection() async {
+        let context = makeContext()
+        defer { context.cleanUp() }
+        context.apiClient.list = [
+            Session(id: "old", status: .active, updatedAt: "2026-01-01"),
+            Session(id: "closed", status: .closed, updatedAt: "2026-03-01"),
+            Session(id: "new", status: .active, updatedAt: "2026-02-01"),
+        ]
+        await context.appState.refreshSessions()
+        XCTAssertEqual(context.appState.activeSession?.id, "new")
+        await context.appState.selectSession("old")
+        await context.appState.refreshSessions()
+        XCTAssertEqual(context.appState.activeSession?.id, "old")
+    }
+
+    func testInvalidManualSelectionAndNetworkFailurePreserveDestination() async {
+        let context = makeContext()
+        defer { context.cleanUp() }
+        await context.appState.selectSession("original")
+        context.apiClient.sessionError = .invalidSession
+        await context.appState.selectSession("other-account")
+        XCTAssertEqual(context.appState.activeSession?.id, "original")
+        context.apiClient.sessionError = .transport
+        await context.appState.refreshSessions()
+        XCTAssertEqual(context.appState.activeSession?.id, "original")
+        context.apiClient.sessionError = .invalidSession
+        await context.appState.refreshSessions()
+        XCTAssertNil(context.appState.activeSession)
+        XCTAssertEqual(context.settings.sessionID, "original")
+        XCTAssertFalse(context.appState.canCapture)
+    }
+
+    func testSlowValidationCannotOverrideNewerSelection() async {
+        let context = makeContext()
+        defer { context.cleanUp() }
+        context.apiClient.delayedID = "slow"
+        let slow = Task { await context.appState.selectSession("slow") }
+        while !context.apiClient.requestedSessionIDs.contains("slow") { await Task.yield() }
+        await context.appState.selectSession("newer")
+        await slow.value
+        XCTAssertEqual(context.appState.activeSession?.id, "newer")
+    }
+
     private func makeContext() -> AppStateTestContext {
         let suiteName = "AppStateTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -72,7 +129,7 @@ final class AppStateTests: XCTestCase {
             defaults: defaults,
             apiBaseURL: "http://localhost:5173/api"
         )
-        settings.apiKey = "test-api-key"
+        settings.accessToken = "test-api-key"
         let permissions = PermissionsService(
             checkScreenRecordingAccess: { true },
             requestScreenRecordingAccess: { true },
@@ -150,20 +207,29 @@ private final class AppStateMockScreenCapturer: ScreenCapturing {
 
 @MainActor
 private final class AppStateMockAPIClient: MtihaniAPIClient {
+    var list = [Session(id: "listed-session", status: .active)]
+    var sessionError: APIError?
+    var delayedID: String?
+    var listCalls = 0
+    var createCalls = 0
     var onGetSession: ((String) -> Void)?
     private(set) var requestedSessionIDs: [String] = []
 
     func listSessions() async throws -> [Session] {
-        [Session(id: "listed-session", status: .active)]
+        listCalls += 1
+        return list
     }
 
     func createSession() async throws -> Session {
-        Session(id: "created-session", status: .active)
+        createCalls += 1
+        return Session(id: "created-session", status: .active)
     }
 
     func getSession(id: String) async throws -> Session {
         requestedSessionIDs.append(id)
         onGetSession?(id)
+        if id == delayedID { try await Task.sleep(for: .milliseconds(30)) }
+        if let sessionError { throw sessionError }
         return Session(id: id, status: .active)
     }
 

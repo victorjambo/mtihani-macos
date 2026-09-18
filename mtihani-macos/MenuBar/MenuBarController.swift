@@ -15,6 +15,7 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var globalClickMonitor: Any?
     private var localClickMonitor: Any?
+    private var accountMenuIsTracking = false
 
     init(appState: AppState, updateManager: UpdateManager) {
         self.appState = appState
@@ -44,6 +45,9 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
                 },
                 closePopover: { [weak self] in
                     self?.popover.performClose(nil)
+                },
+                accountMenuTrackingChanged: { [weak self] tracking in
+                    self?.accountMenuIsTracking = tracking
                 }
             )
         )
@@ -55,8 +59,12 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
             self?.popover.performClose(nil)
         }
-        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) {
+            [weak self] event in
             guard let self, self.popover.isShown else { return event }
+            // AppKit owns events in the side-opening account menu. Do not treat
+            // its window as an outside click and close the parent popover.
+            if self.accountMenuIsTracking { return event }
             if event.window === self.popover.contentViewController?.view.window {
                 return event
             }
@@ -97,6 +105,14 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
     }
 
     private func observeCaptureState() {
+        appState.objectWillChange.sink { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.updateStatusItem(
+                    for: self.appState.captureCoordinator.state,
+                    updateAvailable: self.updateManager.state.updateAvailable)
+            }
+        }.store(in: &cancellables)
         appState.captureCoordinator.$state
             .combineLatest(updateManager.$state)
             .sink { [weak self] state, updateState in
@@ -126,8 +142,10 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
         // Retain the capture status image while making background update alerts discoverable.
         button.title = updateAvailable ? " ·" : ""
         button.imagePosition = updateAvailable ? .imageLeading : .imageOnly
-        statusItem.length = updateAvailable ? NSStatusItem.variableLength : NSStatusItem.squareLength
-        let label = "Mtihani – \(state.title)" + (updateAvailable ? " – Update available" : "")
+        statusItem.length =
+            updateAvailable ? NSStatusItem.variableLength : NSStatusItem.squareLength
+        let label =
+            "Mtihani – \(appState.readiness)" + (updateAvailable ? " – Update available" : "")
         button.toolTip = label
         button.setAccessibilityLabel(label)
     }
@@ -171,7 +189,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             )
             let window = NSWindow(contentViewController: hostingController)
             window.title = "Mtihani Settings"
-            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            window.setContentSize(NSSize(width: 780, height: 600))
             window.isReleasedWhenClosed = false
             window.center()
 

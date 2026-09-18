@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import mtihani_macos
 
 @MainActor
@@ -25,7 +26,7 @@ final class AppSettingsTests: XCTestCase {
 
         XCTAssertEqual(settings.apiBaseURL, apiBaseURL)
         XCTAssertEqual(settings.sessionID, "")
-        XCTAssertEqual(settings.apiKey, "")
+        XCTAssertEqual(settings.accessToken, "")
         XCTAssertEqual(settings.preferredLanguage, .automatic)
         XCTAssertTrue(settings.isTripleClickEnabled)
         XCTAssertEqual(settings.requiredClickCount, 3)
@@ -33,14 +34,16 @@ final class AppSettingsTests: XCTestCase {
 
     func testValuesPersistAcrossInstances() {
         var settings: AppSettings? = AppSettings(defaults: defaults, apiBaseURL: apiBaseURL)
+        settings?.useAccount("account-a")
         settings?.sessionID = " 67df49c6-c3bf-40d5-ab0b-cd91bbad0f32 "
-        settings?.apiKey = " secret-api-key "
+        settings?.accessToken = " secret-api-key "
         settings?.preferredLanguage = .python
         settings?.isTripleClickEnabled = false
         settings?.requiredClickCount = 4
         settings = nil
 
         let restored = AppSettings(defaults: defaults, apiBaseURL: apiBaseURL)
+        restored.useAccount("account-a")
 
         XCTAssertEqual(restored.apiBaseURL, apiBaseURL)
         XCTAssertEqual(
@@ -48,7 +51,9 @@ final class AppSettingsTests: XCTestCase {
             "67df49c6-c3bf-40d5-ab0b-cd91bbad0f32"
         )
         XCTAssertEqual(restored.preferredLanguage, .python)
-        XCTAssertEqual(restored.trimmedAPIKey, "secret-api-key")
+        XCTAssertEqual(restored.trimmedAccessToken, "")
+        restored.useAccount("account-b")
+        XCTAssertEqual(restored.sessionID, "")
         XCTAssertFalse(restored.isTripleClickEnabled)
         XCTAssertEqual(restored.requiredClickCount, 4)
     }
@@ -58,14 +63,26 @@ final class AppSettingsTests: XCTestCase {
 
         XCTAssertEqual(
             AppSettings(defaults: defaults, apiBaseURL: apiBaseURL).requiredClickCount,
-            5
+            6
         )
+    }
+
+    func testRuntimeClickCountIsClampedAndSecretsAreRemovedFromDefaults() {
+        defaults.set("legacy-secret", forKey: "settings.apiKey")
+        let settings = AppSettings(defaults: defaults, apiBaseURL: apiBaseURL)
+        settings.requiredClickCount = 2
+        XCTAssertEqual(settings.requiredClickCount, 3)
+        settings.requiredClickCount = 10
+        XCTAssertEqual(settings.requiredClickCount, 6)
+        settings.accessToken = "memory-only"
+        XCTAssertNil(defaults.object(forKey: "settings.apiKey"))
+        XCTAssertNil(defaults.object(forKey: "settings.accessToken"))
     }
 
     func testConfigurationNormalizesTrailingSlash() throws {
         let configuration = try AppConfiguration(
             apiBaseURL: " https://api.example.com/api/// ",
-            apiKey: "test-api-key"
+            accessToken: "test-api-key"
         )
 
         XCTAssertEqual(
@@ -76,29 +93,29 @@ final class AppSettingsTests: XCTestCase {
 
     func testConfigurationRejectsCredentialsAndUnsupportedSchemes() {
         XCTAssertThrowsError(
-            try AppConfiguration(apiBaseURL: "ftp://api.example.com/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "ftp://api.example.com/api", accessToken: "key")
         )
         XCTAssertThrowsError(
             try AppConfiguration(
                 apiBaseURL: "https://user:secret@example.com/api",
-                apiKey: "key"
+                accessToken: "key"
             )
         )
     }
 
     func testConfigurationAllowsHTTPOnlyForLoopbackDevelopmentHosts() throws {
         XCTAssertNoThrow(
-            try AppConfiguration(apiBaseURL: "http://localhost:5173/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "http://localhost:5173/api", accessToken: "key")
         )
         XCTAssertNoThrow(
-            try AppConfiguration(apiBaseURL: "http://127.0.0.1:5173/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "http://127.0.0.1:5173/api", accessToken: "key")
         )
         XCTAssertNoThrow(
-            try AppConfiguration(apiBaseURL: "http://[::1]:5173/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "http://[::1]:5173/api", accessToken: "key")
         )
 
         XCTAssertThrowsError(
-            try AppConfiguration(apiBaseURL: "http://api.example.com/api", apiKey: "key")
+            try AppConfiguration(apiBaseURL: "http://api.example.com/api", accessToken: "key")
         ) { error in
             XCTAssertEqual(
                 error as? AppConfigurationError,

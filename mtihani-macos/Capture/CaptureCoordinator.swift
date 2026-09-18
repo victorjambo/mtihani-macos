@@ -6,6 +6,21 @@ typealias MtihaniAPIClientFactory = @MainActor (AppConfiguration) -> any Mtihani
 
 @MainActor
 final class CaptureCoordinator: ObservableObject {
+    var captureAllowed: (() -> Bool)?
+    private var accountGeneration = UUID()
+
+    func resetForAccount() {
+        accountGeneration = UUID()
+        closedSessionID = nil
+        resetTask?.cancel()
+        state = .idle
+        connectionState = .notConfigured
+    }
+
+    func markSessionValidated() {
+        closedSessionID = nil
+        connectionState = .connected
+    }
     @Published private(set) var state: CaptureState = .idle
     @Published private(set) var connectionState: SessionConnectionState
 
@@ -36,7 +51,8 @@ final class CaptureCoordinator: ObservableObject {
         self.terminalStateResetNanoseconds = terminalStateResetNanoseconds
         self.apiClientFactory = apiClientFactory
         self.logger = logger
-        connectionState = settings.trimmedSessionID.isEmpty
+        connectionState =
+            settings.trimmedSessionID.isEmpty
             ? .notConfigured
             : .disconnected
     }
@@ -47,6 +63,8 @@ final class CaptureCoordinator: ObservableObject {
     }
 
     func captureAndUpload() async {
+        guard captureAllowed?() ?? true else { return }
+        let currentAccount = accountGeneration
         guard !state.isProcessing else {
             logger.debug("Ignored a capture trigger while another capture is active")
             return
@@ -66,7 +84,8 @@ final class CaptureCoordinator: ObservableObject {
 
         guard permissionService.requestScreenRecordingPermissionIfNeeded() == .granted else {
             fail(
-                with: "Screen Recording permission is required. Open System Settings to grant access."
+                with:
+                    "Screen Recording permission is required. Open System Settings to grant access."
             )
             return
         }
@@ -75,6 +94,7 @@ final class CaptureCoordinator: ObservableObject {
 
         do {
             let image = try await screenCapturer.capture()
+            guard accountGeneration == currentAccount else { return }
             try Task.checkCancellation()
 
             guard image.mimeType == CapturedImage.pngMimeType else {
@@ -88,6 +108,7 @@ final class CaptureCoordinator: ObservableObject {
                 screenshot: image.data,
                 language: requestContext.language
             )
+            guard accountGeneration == currentAccount else { return }
 
             if isCurrent(requestContext) {
                 connectionState = .connected
@@ -98,8 +119,10 @@ final class CaptureCoordinator: ObservableObject {
             )
             scheduleReturnToReady()
         } catch is CancellationError {
+            guard accountGeneration == currentAccount else { return }
             state = .idle
         } catch {
+            guard accountGeneration == currentAccount else { return }
             handleCaptureError(error, context: requestContext)
         }
     }
@@ -140,7 +163,7 @@ final class CaptureCoordinator: ObservableObject {
         }
     }
 
-    func settingsDidChange(sessionID: String, apiKey: String) {
+    func settingsDidChange(sessionID: String, accessToken: String) {
         closedSessionID = nil
         resetTask?.cancel()
 
@@ -148,7 +171,7 @@ final class CaptureCoordinator: ObservableObject {
             connectionState = .notConfigured
         } else {
             do {
-                _ = try AppConfiguration(apiBaseURL: settings.apiBaseURL, apiKey: apiKey)
+                _ = try AppConfiguration(apiBaseURL: settings.apiBaseURL, accessToken: accessToken)
                 connectionState = .disconnected
             } catch {
                 connectionState = .invalidConfiguration
@@ -170,9 +193,9 @@ final class CaptureCoordinator: ObservableObject {
 
         let configuration: AppConfiguration
         switch settings.configuration {
-        case let .success(value):
+        case .success(let value):
             configuration = value
-        case let .failure(error):
+        case .failure(let error):
             connectionState = .invalidConfiguration
             if updateCaptureState {
                 fail(with: error.localizedDescription)
@@ -194,7 +217,7 @@ final class CaptureCoordinator: ObservableObject {
 
         let message: String
         if let localizedError = error as? LocalizedError,
-           let description = localizedError.errorDescription
+            let description = localizedError.errorDescription
         {
             message = description
         } else {
@@ -216,7 +239,7 @@ final class CaptureCoordinator: ObservableObject {
             connectionState = .sessionClosed
         case APIError.transport, APIError.serverError:
             connectionState = .serverUnavailable
-        case APIError.invalidURL, APIError.unauthorized:
+        case APIError.invalidURL:
             connectionState = .invalidConfiguration
         default:
             connectionState = .disconnected
@@ -246,7 +269,7 @@ final class CaptureCoordinator: ObservableObject {
             return false
         }
 
-        guard case let .success(configuration) = settings.configuration else {
+        guard case .success(let configuration) = settings.configuration else {
             return false
         }
 

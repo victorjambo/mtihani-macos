@@ -8,6 +8,16 @@ nonisolated enum SessionStatus: String, Decodable, Sendable {
 nonisolated struct Session: Decodable, Equatable, Sendable {
     let id: String
     let status: SessionStatus
+    var name: String? = nil
+    var createdAt: String? = nil
+    var updatedAt: String? = nil
+
+    var displayName: String {
+        guard let name, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return id
+        }
+        return "\(name) · \(id.prefix(8))…"
+    }
 }
 
 nonisolated enum CaptureAcceptanceStatus: String, Decodable, Sendable {
@@ -38,7 +48,7 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
         case .badRequest:
             "The backend rejected the request."
         case .unauthorized:
-            "The Mtihani Client Key is missing, invalid, or revoked."
+            "Your sign-in has expired. Sign in again."
         case .invalidSession:
             "The session does not exist."
         case .sessionClosed:
@@ -60,13 +70,13 @@ nonisolated enum APIError: Error, Equatable, LocalizedError, Sendable {
             .badRequest
         case 401:
             .unauthorized
-        case 404:
+        case 403, 404:
             .invalidSession
         case 409:
             .sessionClosed
         case 413:
             .captureTooLarge
-        case 500 ... 599:
+        case 500...599:
             .serverError
         default:
             .invalidResponse

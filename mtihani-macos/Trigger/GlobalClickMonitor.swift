@@ -41,39 +41,36 @@ final class GlobalClickMonitor: CaptureTriggerMonitor {
         let requiredClickCount = requiredClickCount
         let onTrigger = onTrigger
 
-        guard let globalMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: .leftMouseDown,
-            handler: { event in
-                let interpreter = TripleClickInterpreter(
-                    requiredClickCount: requiredClickCount()
-                )
-                guard interpreter.isTrigger(button: .left, clickCount: event.clickCount) else {
-                    return
-                }
+        guard
+            let globalMonitor = NSEvent.addGlobalMonitorForEvents(
+                matching: .leftMouseDown,
+                handler: { event in
+                    let interpreter = TripleClickInterpreter(
+                        requiredClickCount: requiredClickCount()
+                    )
+                    guard interpreter.isTrigger(button: .left, clickCount: event.clickCount) else {
+                        return
+                    }
 
-                Task { @MainActor in
-                    onTrigger()
-                }
-            }
-        ) else {
-            Self.logger.error("Unable to register the global click monitor")
-            return false
-        }
-
-        guard let localMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: .leftMouseDown,
-            handler: { event in
-                let interpreter = TripleClickInterpreter(
-                    requiredClickCount: requiredClickCount()
-                )
-                if interpreter.isTrigger(button: .left, clickCount: event.clickCount) {
                     Task { @MainActor in
                         onTrigger()
                     }
                 }
-                return event
-            }
-        ) else {
+            )
+        else {
+            Self.logger.error("Unable to register the global click monitor")
+            return false
+        }
+
+        guard
+            let localMonitor = NSEvent.addLocalMonitorForEvents(
+                matching: .leftMouseDown,
+                handler: { event in
+                    // Local events belong to Mtihani's own windows and popover.
+                    return event
+                }
+            )
+        else {
             NSEvent.removeMonitor(globalMonitor)
             Self.logger.error("Unable to register the local click monitor")
             return false

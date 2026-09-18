@@ -6,11 +6,14 @@ import Sparkle
 /// The only owner of a Sparkle controller. Sparkle owns checking, downloading,
 /// verification, installation, scheduling, normal error UI, and preferences.
 @MainActor
-final class SparkleUpdateDriver: NSObject, UpdateDriving, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
+final class SparkleUpdateDriver: NSObject, UpdateDriving, SPUUpdaterDelegate,
+    SPUStandardUserDriverDelegate
+{
     private var controller: SPUStandardUpdaterController!
     private let changes = CurrentValueSubject<UpdateState, Never>(UpdateState())
     private var observations = Set<AnyCancellable>()
     private var updateAvailable = false
+    private var status = "Not checked"
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.victorjambo.mtihani-macos",
         category: "updates"
@@ -26,8 +29,10 @@ final class SparkleUpdateDriver: NSObject, UpdateDriving, SPUUpdaterDelegate, SP
         let updater = controller.updater
         Publishers.MergeMany(
             updater.publisher(for: \.canCheckForUpdates).map { _ in () }.eraseToAnyPublisher(),
-            updater.publisher(for: \.automaticallyChecksForUpdates).map { _ in () }.eraseToAnyPublisher(),
-            updater.publisher(for: \.automaticallyDownloadsUpdates).map { _ in () }.eraseToAnyPublisher(),
+            updater.publisher(for: \.automaticallyChecksForUpdates).map { _ in () }
+                .eraseToAnyPublisher(),
+            updater.publisher(for: \.automaticallyDownloadsUpdates).map { _ in () }
+                .eraseToAnyPublisher(),
             updater.publisher(for: \.allowsAutomaticUpdates).map { _ in () }.eraseToAnyPublisher()
         )
         .sink { [weak self] in self?.publishState() }
@@ -45,6 +50,8 @@ final class SparkleUpdateDriver: NSObject, UpdateDriving, SPUUpdaterDelegate, SP
     }
 
     func checkForUpdates() {
+        status = "Checking for updates…"
+        publishState()
         controller.updater.checkForUpdates()
     }
 
@@ -81,7 +88,37 @@ final class SparkleUpdateDriver: NSObject, UpdateDriving, SPUUpdaterDelegate, SP
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         // Avoid logging URLs, response bodies, or any credentials in userInfo.
         let error = error as NSError
+        if error.domain != SUSparkleErrorDomain || error.code != 1001 {
+            status = "Update check or installation failed. Try again."
+            publishState()
+        }
         logger.error("Update session ended: \(error.domain, privacy: .public) (\(error.code))")
+    }
+
+    func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        status = "Update available"
+        publishState()
+    }
+
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
+        let reason = (error as NSError).userInfo[SPUNoUpdateFoundReasonKey] as? NSNumber
+        status =
+            reason?.intValue == 1 || reason?.intValue == 2
+            ? "You’re up to date" : "No compatible update available"
+        publishState()
+    }
+
+    func updater(
+        _ updater: SPUUpdater, willDownloadUpdate item: SUAppcastItem,
+        with request: NSMutableURLRequest
+    ) {
+        status = "Downloading update…"
+        publishState()
+    }
+
+    func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
+        status = "Update downloaded"
+        publishState()
     }
 
     private func publishState() {
@@ -92,7 +129,8 @@ final class SparkleUpdateDriver: NSObject, UpdateDriving, SPUUpdaterDelegate, SP
                 automaticallyChecksForUpdates: updater.automaticallyChecksForUpdates,
                 automaticallyDownloadsUpdates: updater.automaticallyDownloadsUpdates,
                 allowsAutomaticUpdates: updater.allowsAutomaticUpdates,
-                updateAvailable: updateAvailable
+                updateAvailable: updateAvailable,
+                status: status
             ))
     }
 }
@@ -116,7 +154,8 @@ enum UpdateConfiguration {
         var errorDescription: String? {
             switch self {
             case .insecureFeed: "SUFeedURL must be a valid HTTPS URL."
-            case .missingPublicKey: "Configure SUPublicEDKey with the public key from Sparkle generate_keys."
+            case .missingPublicKey:
+                "Configure SUPublicEDKey with the public key from Sparkle generate_keys."
             }
         }
     }

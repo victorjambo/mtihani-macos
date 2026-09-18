@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import mtihani_macos
 
 @MainActor
@@ -253,7 +254,7 @@ final class CaptureCoordinatorTests: XCTestCase {
         settings.sessionID = "new-session"
         coordinator.settingsDidChange(
             sessionID: "new-session",
-            apiKey: settings.apiKey
+            accessToken: settings.accessToken
         )
         apiClient.resumeUpload()
         await capture.value
@@ -268,7 +269,7 @@ final class CaptureCoordinatorTests: XCTestCase {
             apiBaseURL: "http://localhost:5173/api"
         )
         settings.sessionID = "session-123"
-        settings.apiKey = "test-api-key"
+        settings.accessToken = "test-api-key"
         return settings
     }
 

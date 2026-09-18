@@ -1,7 +1,12 @@
 import XCTest
+
 @testable import mtihani_macos
 
 final class TripleClickInterpreterTests: XCTestCase {
+    func testSixClickSequenceTriggersOnlyOnceAtThresholdThree() {
+        let interpreter = TripleClickInterpreter()
+        XCTAssertEqual((1...6).filter { interpreter.isTrigger(button: .left, clickCount: $0) }, [3])
+    }
     func testExactlyThreeLeftClicksTriggerCapture() {
         let interpreter = TripleClickInterpreter()
 

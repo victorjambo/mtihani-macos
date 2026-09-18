@@ -9,6 +9,7 @@ struct UpdateState: Equatable {
     var automaticallyDownloadsUpdates = false
     var allowsAutomaticUpdates = false
     var updateAvailable = false
+    var status = "Not checked"
 }
 
 @MainActor

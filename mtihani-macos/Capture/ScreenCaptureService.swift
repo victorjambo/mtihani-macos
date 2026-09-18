@@ -43,7 +43,7 @@ enum ScreenCaptureError: LocalizedError, Equatable {
         case .permissionDenied:
             "Screen Recording permission is required to capture the screen."
         case .mainDisplayUnavailable:
-            "The main display is not currently available for capture."
+            "The selected display is not currently available for capture."
         case .imageUnavailable:
             "macOS did not return a screenshot image."
         case .pngEncodingFailed:
@@ -72,18 +72,28 @@ final class ScreenCaptureService: ScreenCapturing {
 
     func capture() async throws -> CapturedImage {
         guard permissionService.refreshScreenRecordingPermission() == .granted else {
-            logger.notice("Screen capture skipped because Screen Recording permission is unavailable")
+            logger.notice(
+                "Screen capture skipped because Screen Recording permission is unavailable")
             throw ScreenCaptureError.permissionDenied
         }
 
-        logger.debug("Starting main-display screenshot capture")
+        logger.debug("Starting pointer-display screenshot capture")
 
         do {
+            let pointer = CGEvent(source: nil)?.location
             let shareableContent = try await SCShareableContent.current
-            let mainDisplayID = CGMainDisplayID()
+            let mainDisplayID =
+                shareableContent.displays.first(where: { display in
+                    pointer.map { CGDisplayBounds(display.displayID).contains($0) } ?? false
+                })?.displayID ?? CGMainDisplayID()
 
-            guard let display = shareableContent.displays.first(where: { $0.displayID == mainDisplayID }) else {
-                logger.error("The main display was absent from ScreenCaptureKit shareable content")
+            guard
+                let display = shareableContent.displays.first(where: {
+                    $0.displayID == mainDisplayID
+                })
+            else {
+                logger.error(
+                    "The selected display was absent from ScreenCaptureKit shareable content")
                 throw ScreenCaptureError.mainDisplayUnavailable
             }
 
@@ -119,7 +129,7 @@ final class ScreenCaptureService: ScreenCapturing {
             )
 
             logger.info(
-                "Captured main display as PNG: width=\(capturedImage.width), height=\(capturedImage.height), bytes=\(capturedImage.data.count)"
+                "Captured display as PNG: width=\(capturedImage.width), height=\(capturedImage.height), bytes=\(capturedImage.data.count)"
             )
             return capturedImage
         } catch let error as ScreenCaptureError {
@@ -140,12 +150,14 @@ final class ScreenCaptureService: ScreenCapturing {
     nonisolated private static func encodePNG(_ image: CGImage) throws -> Data {
         let data = NSMutableData()
 
-        guard let destination = CGImageDestinationCreateWithData(
-            data,
-            UTType.png.identifier as CFString,
-            1,
-            nil
-        ) else {
+        guard
+            let destination = CGImageDestinationCreateWithData(
+                data,
+                UTType.png.identifier as CFString,
+                1,
+                nil
+            )
+        else {
             throw ScreenCaptureError.pngEncodingFailed
         }
 

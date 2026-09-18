@@ -5,6 +5,7 @@ struct MenuBarView: View {
     @ObservedObject var updateManager: UpdateManager
     let openSettings: @MainActor () -> Void
     let closePopover: @MainActor @Sendable () -> Void
+    let accountMenuTrackingChanged: @MainActor @Sendable (Bool) -> Void
 
     private var coordinator: CaptureCoordinator {
         appState.captureCoordinator
@@ -23,12 +24,15 @@ struct MenuBarView: View {
 
             Divider()
 
-            LabeledContent("Session", value: coordinator.connectionState.title)
-                .font(.callout)
+            LabeledContent(
+                "Active session", value: appState.activeSession?.displayName ?? "No active session"
+            )
+            .font(.callout)
 
             LabeledContent(
                 "Click trigger",
-                value: "\(appState.settings.requiredClickCount) clicks · \(appState.triggerStatusTitle)"
+                value:
+                    "\(appState.settings.requiredClickCount) clicks · \(appState.triggerStatusTitle)"
             )
             .font(.callout)
 
@@ -37,6 +41,14 @@ struct MenuBarView: View {
             }
 
             Divider()
+            if !appState.isAuthenticated {
+                Button("Sign in") {
+                    closePopover()
+                    appState.authentication?.signIn()
+                }
+                .buttonStyle(.borderedProminent)
+                Text("Sign in to connect your sessions.").font(.caption)
+            }
 
             Button {
                 Task {
@@ -46,25 +58,58 @@ struct MenuBarView: View {
                 Label(
                     appState.isSessionOperationInProgress
                         ? "Starting Session…"
-                        : "Start New Session",
+                        : "New session",
                     systemImage: "plus.circle"
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
-            .disabled(appState.isSessionOperationInProgress || coordinator.state.isProcessing)
+            .disabled(
+                !appState.isAuthenticated || appState.isSessionOperationInProgress
+                    || coordinator.state.isProcessing)
 
             Button {
+                closePopover()
                 Task {
+                    try? await Task.sleep(for: .milliseconds(200))
                     await coordinator.captureAndUpload()
                 }
             } label: {
-                Label("Capture Now", systemImage: "camera")
+                Label("Capture now", systemImage: "camera")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
             .keyboardShortcut("c", modifiers: [.command, .shift])
-            .disabled(!coordinator.canCapture)
+            .disabled(!appState.canCapture)
+
+            Button {
+                appState.settings.isTripleClickEnabled.toggle()
+            } label: {
+                Label(
+                    appState.settings.isTripleClickEnabled
+                        ? "Pause click capture" : "Resume click capture",
+                    systemImage: appState.settings.isTripleClickEnabled
+                        ? "pause.circle" : "play.circle"
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.plain)
+
+            if let account = appState.authentication?.account {
+                Divider()
+
+                AccountSubmenuRow(
+                    name: account.name ?? account.email ?? "Account",
+                    email: account.email ?? "",
+                    manageAccount: { appState.authentication?.manageAccount() },
+                    switchAccount: {
+                        closePopover()
+                        appState.authentication?.signIn()
+                    },
+                    signOut: { Task { await appState.authentication?.signOut() } },
+                    trackingChanged: { tracking in accountMenuTrackingChanged(tracking) }
+                )
+                .frame(height: 22)
+            }
 
             if let error = appState.sessionOperationError {
                 Text(error)
@@ -73,12 +118,8 @@ struct MenuBarView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            CheckForUpdatesView(updateManager: updateManager, beforeCheck: { closePopover() })
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
             if updateManager.state.updateAvailable {
-                Text("An update is available. Check for Updates to review it.")
+                Text("An update is available. Open Settings → Updates to review it.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -119,7 +160,7 @@ struct MenuBarView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Mtihani")
                     .font(.headline)
-                Text(coordinator.state.title)
+                Text(appState.readiness)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -169,7 +210,7 @@ struct MenuBarView: View {
     private var statusColor: Color {
         switch coordinator.state {
         case .idle:
-            .green
+            appState.canCapture ? .green : .orange
         case .capturing, .uploading:
             .blue
         case .success:

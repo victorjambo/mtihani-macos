@@ -59,7 +59,7 @@ enum PreferredLanguage: String, CaseIterable, Identifiable, Sendable {
 enum AppConfigurationError: LocalizedError, Equatable {
     case invalidBackendURL
     case insecureRemoteBackend
-    case missingAPIKey
+    case missingAccessToken
 
     var errorDescription: String? {
         switch self {
@@ -67,17 +67,17 @@ enum AppConfigurationError: LocalizedError, Equatable {
             "Enter a valid HTTP or HTTPS backend URL."
         case .insecureRemoteBackend:
             "Use HTTPS for remote backends. HTTP is allowed only for local development."
-        case .missingAPIKey:
-            "Enter the Mtihani Client Key generated in web Settings."
+        case .missingAccessToken:
+            "Sign in to connect your account."
         }
     }
 }
 
 struct AppConfiguration: Equatable, Sendable {
     let apiBaseURL: URL
-    let apiKey: String
+    let accessToken: String
 
-    init(apiBaseURL: String, apiKey: String) throws {
+    init(apiBaseURL: String, accessToken: String) throws {
         let value = apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard
             var components = URLComponents(string: value),
@@ -110,30 +110,36 @@ struct AppConfiguration: Equatable, Sendable {
             throw AppConfigurationError.invalidBackendURL
         }
 
-        let trimmedAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedAPIKey.isEmpty else {
-            throw AppConfigurationError.missingAPIKey
+        let trimmedAccessToken = accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedAccessToken.isEmpty else {
+            throw AppConfigurationError.missingAccessToken
         }
 
         self.apiBaseURL = url
-        self.apiKey = trimmedAPIKey
+        self.accessToken = trimmedAccessToken
     }
 }
 
 @MainActor
 final class AppSettings: ObservableObject {
     static let defaultRequiredClickCount = 3
-    static let requiredClickCountRange = 2 ... 5
+    static let requiredClickCountRange = 3...6
 
     let apiBaseURL: String
 
     @Published var sessionID: String {
-        didSet { defaults.set(sessionID, forKey: Keys.sessionID) }
+        didSet { if let accountID { defaults.set(sessionID, forKey: selectionKey(accountID)) } }
     }
 
-    @Published var apiKey: String {
-        didSet { defaults.set(apiKey, forKey: Keys.apiKey) }
+    @Published var accessToken: String = ""
+    private(set) var accountID: String?
+
+    func useAccount(_ id: String?) {
+        accountID = id
+        sessionID = id.flatMap { defaults.string(forKey: selectionKey($0)) } ?? ""
     }
+
+    private func selectionKey(_ id: String) -> String { "session.\(apiBaseURL).\(id)" }
 
     @Published var preferredLanguage: PreferredLanguage {
         didSet {
@@ -149,6 +155,8 @@ final class AppSettings: ObservableObject {
 
     @Published var requiredClickCount: Int {
         didSet {
+            let bounded = min(max(requiredClickCount, 3), 6)
+            if requiredClickCount != bounded { requiredClickCount = bounded }
             defaults.set(requiredClickCount, forKey: Keys.requiredClickCount)
         }
     }
@@ -157,14 +165,14 @@ final class AppSettings: ObservableObject {
         sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    var trimmedAPIKey: String {
-        apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    var trimmedAccessToken: String {
+        accessToken.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     var configuration: Result<AppConfiguration, AppConfigurationError> {
         do {
             return .success(
-                try AppConfiguration(apiBaseURL: apiBaseURL, apiKey: apiKey)
+                try AppConfiguration(apiBaseURL: apiBaseURL, accessToken: accessToken)
             )
         } catch let error as AppConfigurationError {
             return .failure(error)
@@ -181,9 +189,11 @@ final class AppSettings: ObservableObject {
     ) {
         self.defaults = defaults
         self.apiBaseURL = apiBaseURL
-        sessionID = defaults.string(forKey: Keys.sessionID) ?? ""
-        apiKey = defaults.string(forKey: Keys.apiKey) ?? ""
-        preferredLanguage = defaults
+        sessionID = ""
+        defaults.removeObject(forKey: "settings.apiKey")
+        defaults.removeObject(forKey: "settings.accessToken")
+        preferredLanguage =
+            defaults
             .string(forKey: Keys.preferredLanguage)
             .flatMap(PreferredLanguage.init(rawValue:))
             ?? .automatic
@@ -194,7 +204,8 @@ final class AppSettings: ObservableObject {
             isTripleClickEnabled = defaults.bool(forKey: Keys.isTripleClickEnabled)
         }
 
-        let savedClickCount = defaults.object(forKey: Keys.requiredClickCount)
+        let savedClickCount =
+            defaults.object(forKey: Keys.requiredClickCount)
             .flatMap { $0 as? NSNumber }?
             .intValue ?? Self.defaultRequiredClickCount
         requiredClickCount = min(
@@ -204,8 +215,6 @@ final class AppSettings: ObservableObject {
     }
 
     private enum Keys {
-        static let sessionID = "settings.sessionID"
-        static let apiKey = "settings.apiKey"
         static let preferredLanguage = "settings.preferredLanguage"
         static let isTripleClickEnabled = "settings.tripleClickEnabled"
         static let requiredClickCount = "settings.requiredClickCount"

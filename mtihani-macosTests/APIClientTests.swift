@@ -1,12 +1,13 @@
 import XCTest
+
 @testable import mtihani_macos
 
 final class APIClientTests: XCTestCase {
     private let baseURL = URL(string: "https://api.example.com/api/")!
-    private let apiKey = "test-api-key"
+    private let accessToken = "test-api-key"
 
     func testSessionRequestUsesExpectedMethodAndURL() throws {
-        let request = try APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
+        let request = try APIRequestBuilder(baseURL: baseURL, accessToken: accessToken)
             .getSessionRequest(id: "session/id")
 
         XCTAssertEqual(request.httpMethod, "GET")
@@ -18,11 +19,11 @@ final class APIClientTests: XCTestCase {
             request.value(forHTTPHeaderField: "Accept"),
             "application/json"
         )
-        XCTAssertEqual(request.value(forHTTPHeaderField: "x-api-key"), apiKey)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer \(accessToken)")
     }
 
     func testListAndCreateSessionRequestsUseCollectionURL() throws {
-        let builder = APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
+        let builder = APIRequestBuilder(baseURL: baseURL, accessToken: accessToken)
         let listRequest = try builder.listSessionsRequest()
         let createRequest = try builder.createSessionRequest()
 
@@ -33,14 +34,16 @@ final class APIClientTests: XCTestCase {
             "https://api.example.com/api/sessions"
         )
         XCTAssertEqual(createRequest.url, listRequest.url)
-        XCTAssertEqual(listRequest.value(forHTTPHeaderField: "x-api-key"), apiKey)
-        XCTAssertEqual(createRequest.value(forHTTPHeaderField: "x-api-key"), apiKey)
+        XCTAssertEqual(
+            listRequest.value(forHTTPHeaderField: "Authorization"), "Bearer \(accessToken)")
+        XCTAssertEqual(
+            createRequest.value(forHTTPHeaderField: "Authorization"), "Bearer \(accessToken)")
         XCTAssertNil(listRequest.url?.query)
         XCTAssertNil(createRequest.url?.query)
     }
 
     func testUploadRequestBuildsPNGMultipartBodyWithLanguage() throws {
-        let request = try APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
+        let request = try APIRequestBuilder(baseURL: baseURL, accessToken: accessToken)
             .uploadCaptureRequest(
                 sessionId: "session-123",
                 screenshot: Data("PNG-DATA".utf8),
@@ -59,7 +62,7 @@ final class APIClientTests: XCTestCase {
             request.value(forHTTPHeaderField: "Content-Type"),
             "multipart/form-data; boundary=Boundary-123"
         )
-        XCTAssertEqual(request.value(forHTTPHeaderField: "x-api-key"), apiKey)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer \(accessToken)")
         XCTAssertNil(request.url?.query)
         XCTAssertTrue(
             bodyText.contains(
@@ -74,7 +77,7 @@ final class APIClientTests: XCTestCase {
     }
 
     func testUploadRequestOmitsAutomaticLanguageField() throws {
-        let request = try APIRequestBuilder(baseURL: baseURL, apiKey: apiKey)
+        let request = try APIRequestBuilder(baseURL: baseURL, accessToken: accessToken)
             .uploadCaptureRequest(
                 sessionId: "session-123",
                 screenshot: Data("PNG-DATA".utf8),
@@ -106,7 +109,7 @@ final class APIClientTests: XCTestCase {
         )
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
-            apiKey: apiKey,
+            accessToken: accessToken,
             transport: transport
         )
 
@@ -126,7 +129,7 @@ final class APIClientTests: XCTestCase {
         let transport = MockHTTPTransport()
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
-            apiKey: apiKey,
+            accessToken: accessToken,
             transport: transport
         )
 
@@ -154,7 +157,7 @@ final class APIClientTests: XCTestCase {
         )
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
-            apiKey: apiKey,
+            accessToken: accessToken,
             transport: transport
         )
 
@@ -172,7 +175,7 @@ final class APIClientTests: XCTestCase {
         )
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
-            apiKey: apiKey,
+            accessToken: accessToken,
             transport: transport
         )
 
@@ -201,7 +204,7 @@ final class APIClientTests: XCTestCase {
         transport.statusCode = 409
         let client = URLSessionMtihaniAPIClient(
             baseURL: baseURL,
-            apiKey: apiKey,
+            accessToken: accessToken,
             transport: transport
         )
 
@@ -231,16 +234,48 @@ final class APIClientTests: XCTestCase {
             XCTAssertEqual(error as? APIError, expected)
         }
     }
+
+    @MainActor
+    func testOnlyGuard401IsRetriedAndOfflineRefreshIsTransportError() async throws {
+        let transport = MockHTTPTransport()
+        transport.statusCode = 401
+        transport.responseData = Data(#"{"id":"created","status":"active"}"#.utf8)
+        let client = URLSessionMtihaniAPIClient(
+            baseURL: baseURL, accessToken: accessToken, transport: transport)
+        var forced = 0
+        client.tokenProvider = { force in
+            if force {
+                forced += 1
+                transport.statusCode = 201
+            }
+            return "renewed"
+        }
+        _ = try await client.createSession()
+        XCTAssertEqual(forced, 1)
+        XCTAssertEqual(transport.requests, 2)
+        transport.statusCode = 403
+        await assertAPIError(.invalidSession) { try await client.createSession() }
+        XCTAssertEqual(forced, 1)
+        XCTAssertEqual(transport.requests, 3)
+        transport.error = URLError(.networkConnectionLost)
+        await assertAPIError(.transport) { try await client.createSession() }
+        XCTAssertEqual(transport.requests, 4)
+        client.tokenProvider = { _ in throw URLError(.notConnectedToInternet) }
+        await assertAPIError(.transport) { try await client.createSession() }
+        XCTAssertEqual(transport.requests, 4)
+    }
 }
 
 @MainActor
 private final class MockHTTPTransport: HTTPTransport {
+    var requests = 0
     var statusCode = 200
     var responseData = Data()
     var error: Error?
     private(set) var lastRequest: URLRequest?
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
+        requests += 1
         lastRequest = request
         if let error {
             throw error
