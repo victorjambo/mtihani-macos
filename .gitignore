@@ -1,4 +1,5 @@
 .DS_Store
+.env.release
 build/
 releases/
 *.xcarchive

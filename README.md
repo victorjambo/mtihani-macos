@@ -82,7 +82,9 @@ The Sparkle public key in `Configuration/Updates.xcconfig` corresponds to the
 securely back up that key and provision the production HTTPS feed.
 Builds with a missing or invalid public key keep update controls unavailable. See
 [application updates and releases](docs/UPDATES.md) for key setup, sandbox
-details, Developer ID/notarization, DMG/appcast generation, private update
-testing, and the production release procedure.
+details, unsigned DMG/appcast generation, Supabase publication, private update
+testing, and the production release procedure. For the exact release command,
+environment-variable reference, and version-bump checklist, use the
+[unsigned release runbook](docs/UNSIGNED-RELEASE.md).
 Current verification results and remaining manual checks are recorded in
 [update verification](docs/UPDATE-VERIFICATION.md).

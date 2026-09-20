@@ -69,18 +69,23 @@ Sparkle requires a Developer ID signed DMG to rotate a lost EdDSA key. Keep
 secure backups and follow Sparkle's key-rotation guide rather than replacing
 both signing identities at once.
 
-Apple Developer ID signing/notarization and Sparkle EdDSA are separate layers:
+Releases intentionally use an unsigned app in an unsigned DMG. Sparkle EdDSA
+still authenticates updates independently of Apple code signing:
 
-1. Xcode archives and exports a Developer ID signed app, including Sparkle helpers.
-2. Apple notarizes the app; the notarization ticket is stapled to it.
-3. The app is packaged in a Developer ID signed, notarized, stapled DMG.
-4. Sparkle signs the **final DMG bytes** and produces the appcast.
-5. HTTPS hosting serves the appcast, notes, and DMG independently of NestJS.
+1. Xcode archives with distribution code signing disabled, then the release
+   script removes Xcode's ad-hoc linker signature from the outer app.
+2. The unsigned app is packaged in an unsigned DMG.
+3. Sparkle signs the **final DMG bytes** and produces the appcast.
+4. HTTPS hosting serves the appcast, notes, and DMG independently of NestJS.
+
+This distribution model triggers macOS Gatekeeper warnings and provides no
+Apple Developer ID identity or notarization assurance. Users may need to use
+Finder's **Open** action and explicitly approve the app in Privacy & Security.
+Sparkle's EdDSA signature protects updates but does not remove those warnings.
 
 The same DMG serves direct downloads and Sparkle updates; Sparkle supports
-DMGs, so no separate ZIP update artifact is necessary. A ZIP used during app
-notarization is a temporary submission artifact and is **not** published in the
-release directory. Keep app archives and Sparkle dSYMs for diagnostics.
+DMGs, so no separate ZIP update artifact is necessary. Keep app archives and
+Sparkle dSYMs for diagnostics.
 
 ### Sandbox and signing details
 
@@ -98,11 +103,10 @@ is not enabled because Mtihani already has `com.apple.security.network.client`.
 No additional XPC copy phases, app groups, or TLS exceptions are needed.
 The existing local-network ATS exception belongs to backend development;
 update configuration requires HTTPS, including private test feeds.
-Hardened Runtime is enabled. The XCTest target uses the same signing team as
-the app so its test bundle passes library validation. Debug builds need an Apple Development identity;
-production uses Developer ID Application. Archive **and export** through Xcode
-so nested Sparkle helpers are re-signed correctly. Do not sign with `--deep`;
-`codesign --verify --deep` is a verification command and is appropriate.
+The normal development and test signing settings remain unchanged. Production
+release automation passes `CODE_SIGNING_ALLOWED=NO`, removes any ad-hoc outer
+app signature, and packages the application directly from the archive; it does
+not export, distribution-sign, notarize, or staple it.
 
 ## One-time release owner setup
 
@@ -126,15 +130,34 @@ import it into a secret manager. Do not commit it, put it in an `.env` file, or
 embed it in any app resource. Never print it in logs or pass its contents as a
 command-line argument. Ignoring a file in Git is not a storage strategy.
 
-Provision a Developer ID Application certificate for team `AYS2LJ2VX4` and
-store notarization credentials with `xcrun notarytool store-credentials` in
-Keychain (follow its interactive prompts). Update the public team ID in the
-export plist if ownership changes. Set up HTTPS static hosting with a stable
-feed URL, suitable XML content type, short feed cache lifetime, and immutable
-versioned artifacts. Hosting may be an object store, static website, or GitHub
-Release asset URL; the app never calls GitHub APIs.
+Set up HTTPS static hosting with a stable feed URL, suitable XML content type,
+short feed cache lifetime, and immutable versioned artifacts. Hosting may be an
+object store, static website, or GitHub Release asset URL; the app never calls
+GitHub APIs.
 
 ## Production release procedure
+
+The complete local workflow through Supabase artifact publication can be run
+with `scripts/release-to-supabase.sh`. It deliberately stops after staging the
+new feed in the frontend repository: deploying that feed and testing an upgrade
+from the previous installed version remain explicit release gates.
+
+```bash
+export SUPABASE_URL=https://PROJECT_REF.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY='load-this-from-a-secret-manager'
+export SUPABASE_RELEASE_BUCKET=mtihani-releases
+
+bash scripts/release-to-supabase.sh /path/to/release-notes.html
+```
+
+The bucket must already exist and be public. The script never overwrites a
+published object. It archives with distribution signing disabled, removes the
+outer app's ad-hoc linker signature, invokes the DMG and appcast scripts,
+uploads the versioned DMG and notes, downloads
+both public objects to verify their SHA-256 hashes, and copies the appcast to
+`../mtihani-app/apps/frontend/public/appcast.xml` only after verification.
+Keep the service-role key outside the repository; it is read from the process
+environment and written only to a temporary mode-0600 curl header file.
 
 1. Update `MARKETING_VERSION` and increment `CURRENT_PROJECT_VERSION` in both
    application build configurations. Use positive integer builds, always
@@ -144,7 +167,7 @@ Release asset URL; the app never calls GitHub APIs.
    the previous appcast and release artifacts in the local `releases/` working
    directory so packaging can enforce increasing builds. Do not place `dist/`
    legacy DMGs without Sparkle in this directory.
-3. Archive and export with Xcode; this signs the nested Sparkle components:
+3. Archive with Xcode signing disabled:
 
 ```bash
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
@@ -152,44 +175,28 @@ xcodebuild -project mtihani-macos.xcodeproj -scheme mtihani-macos \
   -configuration Release -destination 'generic/platform=macOS' \
   -clonedSourcePackagesDirPath "$PWD/build/SourcePackages" \
   -archivePath "$PWD/build/Mtihani.xcarchive" \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' \
   ONLY_ACTIVE_ARCH=NO archive
-xcodebuild -exportArchive -archivePath "$PWD/build/Mtihani.xcarchive" \
-  -exportPath "$PWD/build/export" \
-  -exportOptionsPlist Configuration/DeveloperIDExport.plist
 ```
 
-Use `-allowProvisioningUpdates` only if Xcode needs to access your configured
-developer account. Archive/export destinations should be fresh for each release.
+Use a fresh archive destination for each release. The app is located at
+`build/Mtihani.xcarchive/Products/Applications/mtihani-macos.app`.
 
-4. Notarize and staple the exported app. Confirm `notarytool` reports Accepted;
-   if rejected, inspect its log and fix the issue before continuing.
+4. Produce the unsigned direct-download/Sparkle DMG:
 
 ```bash
-export NOTARYTOOL_PROFILE=mtihani-notary
-ditto -c -k --keepParent build/export/mtihani-macos.app build/notarization.zip
-xcrun notarytool submit build/notarization.zip \
-  --keychain-profile "$NOTARYTOOL_PROFILE" --wait
-xcrun stapler staple build/export/mtihani-macos.app
-xcrun stapler validate build/export/mtihani-macos.app
+bash scripts/package-release.sh \
+  build/Mtihani.xcarchive/Products/Applications/mtihani-macos.app releases
 ```
 
-5. Produce the direct-download/Sparkle DMG. Substitute the actual certificate
-   name; this is public identity metadata, not the certificate's private key.
+The script verifies bundle configuration, increasing builds, and embedded
+Sparkle components. It preserves executable permissions/symlinks using `ditto`,
+removes any outer ad-hoc app signature from the staging copy, verifies the copy
+is unsigned, adds an Applications shortcut, and creates an unsigned DMG. It
+refuses to overwrite an existing versioned artifact.
+Existing `dist/` artifacts are unchanged.
 
-```bash
-export DEVELOPER_ID_APPLICATION='Developer ID Application: YOUR NAME (AYS2LJ2VX4)'
-bash scripts/package-release.sh build/export/mtihani-macos.app releases
-```
-
-The script verifies bundle configuration, increasing builds, embedded Sparkle
-components, Developer ID/Hardened Runtime signatures, and app notarization.
-It preserves executable permissions/symlinks using `ditto`, adds an Applications
-shortcut, creates the DMG, then signs, notarizes, and staples it. It refuses to
-overwrite an existing versioned artifact. If interrupted or notarization fails,
-quarantine that incomplete artifact outside `releases/` before retrying; never
-publish it. Existing `dist/` artifacts are unchanged.
-
-6. Add concise matching notes, for example `releases/Mtihani-1.1.0-2.html`,
+5. Add concise matching notes, for example `releases/Mtihani-1.1.0-2.html`,
    alongside `Mtihani-1.1.0-2.dmg`. Use a complete HTML document with a body
    for a linked release-notes file; HTML fragments are embedded by Sparkle.
    Markdown and text files also work in Sparkle 2.9.6. Then generate/sign:
@@ -216,22 +223,21 @@ releases/
   appcast.xml
 ```
 
-7. Upload the DMG and linked notes first. Verify their HTTPS URLs and content
+6. Upload the DMG and linked notes first. Verify their HTTPS URLs and content
    lengths, then replace `apps/frontend/public/appcast.xml` with the generated
    `appcast.xml` and deploy it last.
    Verify the feed over HTTPS with `curl --fail --proto '=https'
    --proto-redir '=https' --location URL`. Retain immutable archive URLs and
    ensure any redirects also use HTTPS. Never upload credentials or keys.
-8. Install the previous Sparkle-enabled Mtihani version into Applications,
+7. Install the previous Sparkle-enabled Mtihani version into Applications,
    select **Check for Updates…**, review notes, install/relaunch, and confirm
    the new version/build in Settings. Announce the release only after this
    succeeds. Existing pre-Sparkle releases need one manual DMG installation.
 
 ### Future CI
 
-Reuse the archive/export and scripts above. Supply Apple certificate/private
-key and notarization credentials from CI secret storage into a temporary
-Keychain. Supply the Sparkle key either in that Keychain or through
+Reuse the unsigned archive and scripts above. Supply the Sparkle key either in
+the build user's Keychain or through
 `SPARKLE_PRIVATE_KEY_FILE` pointing to a protected temporary secret file outside
 the checkout. `SPARKLE_KEY_ACCOUNT` overrides the default `mtihani` account.
 Supply storage credentials through the host's secret mechanism. Do not enable
@@ -253,12 +259,11 @@ sandbox containers, installations, and capture permissions from daily use.
    `PRODUCT_BUNDLE_IDENTIFIER=com.victorjambo.mtihani-macos.updater-test`,
    `MARKETING_VERSION=...`, and `CURRENT_PROJECT_VERSION=...` to `xcodebuild`.
    Both builds must use the same test ID, feed, and public key. Use separate
-   output directories and preserve old/new signed bundles.
-2. Prefer the full Developer ID/notarized packaging flow above with the test
-   settings. For development-only UI testing, an Apple Development signed app
-   in a `ditto -c -k --keepParent` ZIP is also supported by Sparkle; keep those
-   ZIPs in a separate test release directory. This does not validate production
-   signing/notarization. Never mutate a signed app's Info.plist after building.
+   output directories and preserve the old and new bundles.
+2. Use the unsigned DMG packaging flow above with the test settings. A ZIP is
+   also supported by Sparkle for development-only update testing; keep those
+   ZIPs in a separate test release directory. Never mutate an app's Info.plist
+   after generating its Sparkle archive signature.
 3. Put only the new artifact and matching notes in the test release directory.
    Run `generate-appcast.sh` with `SPARKLE_KEY_ACCOUNT=mtihani-update-test` and
    the private HTTPS download prefix. Host the generated files there.
@@ -298,7 +303,8 @@ xcodebuild -project mtihani-macos.xcodeproj -scheme mtihani-macos \
 xcodebuild -project mtihani-macos.xcodeproj -scheme mtihani-macos \
   -configuration Debug -destination 'platform=macOS' test
 python3 -m unittest discover -s scripts/tests
-bash -n scripts/package-release.sh scripts/generate-appcast.sh
+bash -n scripts/package-release.sh scripts/generate-appcast.sh \
+  scripts/release-to-supabase.sh
 ```
 
 This is an Xcode application, not a standalone Swift package, so Swift tests
