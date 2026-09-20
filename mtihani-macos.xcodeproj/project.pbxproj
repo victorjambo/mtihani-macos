@@ -21,7 +21,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		C78460BC304C27F600BB0C98 /* mtihani-macos.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "mtihani-macos.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C78460BC304C27F600BB0C98 /* Mtihani.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mtihani.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7C8A2CB3058289600D99A79 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		C7C8A2CD305828CF00D99A79 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
 		D00000000000000000000001 /* mtihani-macosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "mtihani-macosTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -86,7 +86,7 @@
 		C78460BD304C27F600BB0C98 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				C78460BC304C27F600BB0C98 /* mtihani-macos.app */,
+				C78460BC304C27F600BB0C98 /* Mtihani.app */,
 				D00000000000000000000001 /* mtihani-macosTests.xctest */,
 			);
 			name = Products;
@@ -114,8 +114,8 @@
 			packageProductDependencies = (
 				E00000000000000000000002 /* Sparkle */,
 			);
-			productName = "mtihani-macos";
-			productReference = C78460BC304C27F600BB0C98 /* mtihani-macos.app */;
+			productName = Mtihani;
+			productReference = C78460BC304C27F600BB0C98 /* Mtihani.app */;
 			productType = "com.apple.product-type.application";
 		};
 		D00000000000000000000008 /* mtihani-macosTests */ = {
@@ -392,7 +392,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.victorjambo.mtihani-macos.dev";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = mtihani_macos;
+				PRODUCT_NAME = Mtihani;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -438,7 +439,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.6;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.victorjambo.mtihani-macos";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_MODULE_NAME = mtihani_macos;
+				PRODUCT_NAME = Mtihani;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -469,7 +471,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/mtihani-macos.app/Contents/MacOS/mtihani-macos";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mtihani.app/Contents/MacOS/Mtihani";
 			};
 			name = Debug;
 		};
@@ -493,7 +495,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/mtihani-macos.app/Contents/MacOS/mtihani-macos";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mtihani.app/Contents/MacOS/Mtihani";
 			};
 			name = Release;
 		};

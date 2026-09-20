@@ -83,7 +83,7 @@ xcodebuild -project "$project_root/mtihani-macos.xcodeproj" \
     CODE_SIGN_IDENTITY='' \
     ONLY_ACTIVE_ARCH=NO archive
 
-app="$archive/Products/Applications/mtihani-macos.app"
+app="$archive/Products/Applications/Mtihani.app"
 [[ -d "$app" ]] || { echo "Archived application not found: $app" >&2; exit 1; }
 if codesign -dv "$app" >/dev/null 2>&1; then
     codesign --remove-signature "$app"

@@ -180,13 +180,13 @@ xcodebuild -project mtihani-macos.xcodeproj -scheme mtihani-macos \
 ```
 
 Use a fresh archive destination for each release. The app is located at
-`build/Mtihani.xcarchive/Products/Applications/mtihani-macos.app`.
+`build/Mtihani.xcarchive/Products/Applications/Mtihani.app`.
 
 4. Produce the unsigned direct-download/Sparkle DMG:
 
 ```bash
 bash scripts/package-release.sh \
-  build/Mtihani.xcarchive/Products/Applications/mtihani-macos.app releases
+  build/Mtihani.xcarchive/Products/Applications/Mtihani.app releases
 ```
 
 The script verifies bundle configuration, increasing builds, and embedded

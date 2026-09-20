@@ -1,6 +1,6 @@
 # Unsigned macOS release runbook
 
-This runbook publishes an **unsigned** `mtihani-macos.app` inside an unsigned
+This runbook publishes an **unsigned** `Mtihani.app` inside an unsigned
 DMG. The release script builds the app, removes Xcode's ad-hoc outer signature,
 creates the DMG, signs the DMG bytes with Sparkle EdDSA, uploads the DMG and
 release notes to Supabase Storage, verifies both uploads, and stages the new

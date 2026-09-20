@@ -3,7 +3,7 @@
 set -euo pipefail
 
 if [[ $# != 2 ]]; then
-    echo "Usage: $0 /path/to/export/mtihani-macos.app /path/to/releases" >&2
+    echo "Usage: $0 /path/to/Mtihani.app /path/to/releases" >&2
     exit 2
 fi
 script_dir="$(cd "$(dirname "$0")" && pwd)"
