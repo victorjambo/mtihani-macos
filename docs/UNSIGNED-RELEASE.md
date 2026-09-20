@@ -207,7 +207,7 @@ Create a complete HTML file outside `releases/`, for example:
 </html>
 ```
 
-Save it as something like `/tmp/mtihani-1.1.0-notes.html`. The script copies
+Save it as something like `/release/mtihani-1.1.0-notes.html`. The script copies
 it to the correct versioned name after reading the built app's version and
 build.
 
@@ -222,7 +222,7 @@ set -a
 source .env.release
 set +a
 
-bash scripts/release-to-supabase.sh /tmp/mtihani-1.1.0-notes.html
+bash scripts/release-to-supabase.sh /release/mtihani-1.1.0-notes.html
 ```
 
 The script performs these operations in order:
