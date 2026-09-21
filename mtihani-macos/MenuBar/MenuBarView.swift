@@ -37,17 +37,9 @@ struct MenuBarView: View {
             .font(.callout)
 
             if appState.permissions.screenRecordingState != .granted {
+                Divider()
                 permissionNotice
-            }
-
-            Divider()
-            if !appState.isAuthenticated {
-                Button("Sign in") {
-                    closePopover()
-                    appState.authentication?.signIn()
-                }
-                .buttonStyle(.borderedProminent)
-                Text("Sign in to connect your sessions.").font(.caption)
+                Divider()
             }
 
             Button {
@@ -94,9 +86,8 @@ struct MenuBarView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }.buttonStyle(.plain)
 
+            Divider()
             if let account = appState.authentication?.account {
-                Divider()
-
                 AccountSubmenuRow(
                     name: account.name ?? account.email ?? "Account",
                     email: account.email ?? "",
@@ -116,6 +107,18 @@ struct MenuBarView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            if !appState.isAuthenticated {
+                Button {
+                    closePopover()
+                    appState.authentication?.signIn()
+                } label: {
+                    Label("Sign in", systemImage: "person.crop.circle")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                Text("Sign in to connect your sessions.").font(.caption)
             }
 
             if updateManager.state.updateAvailable {
