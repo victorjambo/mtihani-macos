@@ -55,7 +55,7 @@ struct MenuBarView: View {
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MenuBarSelectionButtonStyle())
             .disabled(
                 !appState.isAuthenticated || appState.isSessionOperationInProgress
                     || coordinator.state.isProcessing)
@@ -70,7 +70,7 @@ struct MenuBarView: View {
                 Label("Capture now", systemImage: "camera")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MenuBarSelectionButtonStyle())
             .keyboardShortcut("c", modifiers: [.command, .shift])
             .disabled(!appState.canCapture)
 
@@ -84,7 +84,7 @@ struct MenuBarView: View {
                         ? "pause.circle" : "play.circle"
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
-            }.buttonStyle(.plain)
+            }.buttonStyle(MenuBarSelectionButtonStyle())
 
             Divider()
             if let account = appState.authentication?.account {
@@ -117,7 +117,7 @@ struct MenuBarView: View {
                     Label("Sign in", systemImage: "person.crop.circle")
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(MenuBarSelectionButtonStyle())
                 Text("Sign in to connect your sessions.").font(.caption)
             }
 
@@ -134,7 +134,7 @@ struct MenuBarView: View {
                 Label("Settings…", systemImage: "gearshape")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MenuBarSelectionButtonStyle())
 
             Divider()
 
@@ -144,7 +144,7 @@ struct MenuBarView: View {
                 Label("Quit Mtihani", systemImage: "power")
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(MenuBarSelectionButtonStyle())
             .keyboardShortcut("q")
         }
         .padding(16)
@@ -220,6 +220,35 @@ struct MenuBarView: View {
             .green
         case .failed:
             .red
+        }
+    }
+}
+
+private struct MenuBarSelectionButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        MenuBarSelectionRow(configuration: configuration)
+    }
+
+    private struct MenuBarSelectionRow: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var isHovering = false
+
+        var body: some View {
+            configuration.label
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .contentShape(Rectangle())
+                .background(
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(isSelected ? Color.accentColor : Color.clear)
+                )
+                .onHover { isHovering = $0 }
+        }
+
+        private var isSelected: Bool {
+            isEnabled && (isHovering || configuration.isPressed)
         }
     }
 }

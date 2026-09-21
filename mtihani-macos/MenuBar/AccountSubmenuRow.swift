@@ -85,8 +85,71 @@ struct AccountSubmenuRow: NSViewRepresentable {
 }
 
 private final class AccountMenuButton: NSButton {
+    private var isHovering = false
+    private var hoverTrackingArea: NSTrackingArea?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        wantsLayer = true
+    }
+
     // Keep the icon, label and chevron part of one clickable/focusable row.
     override func hitTest(_ point: NSPoint) -> NSView? {
         super.hitTest(point) == nil ? nil : self
+    }
+
+    override func updateTrackingAreas() {
+        if let hoverTrackingArea {
+            removeTrackingArea(hoverTrackingArea)
+        }
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(trackingArea)
+        hoverTrackingArea = trackingArea
+        super.updateTrackingAreas()
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovering = true
+        needsDisplay = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovering = false
+        needsDisplay = true
+    }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        super.updateLayer()
+        let isSelected = isEnabled && isHovering
+        let foregroundColor =
+            isSelected ? NSColor.alternateSelectedControlTextColor : NSColor.controlTextColor
+        layer?.cornerRadius = 5
+        layer?.backgroundColor =
+            isSelected
+            ? NSColor.controlAccentColor.cgColor
+            : NSColor.clear.cgColor
+        descendants(of: NSTextField.self).forEach { $0.textColor = foregroundColor }
+        descendants(of: NSImageView.self).forEach { $0.contentTintColor = foregroundColor }
+    }
+
+}
+
+private extension NSView {
+    func descendants<View: NSView>(of type: View.Type) -> [View] {
+        subviews.flatMap { subview in
+            (subview as? View).map { [$0] } ?? subview.descendants(of: type)
+        }
     }
 }
