@@ -1,8 +1,8 @@
 # Unsigned macOS release runbook
 
-This runbook publishes an **unsigned** `Mtihani.app` inside an unsigned
-DMG. The release script builds the app, removes Xcode's ad-hoc outer signature,
-creates the DMG, signs the DMG bytes with Sparkle EdDSA, uploads the DMG and
+This runbook publishes an **unsigned** `Mtihani.app` inside a ZIP archive.
+The release script builds the app, removes Xcode's ad-hoc outer signature,
+creates the ZIP, signs the ZIP bytes with Sparkle EdDSA, uploads the ZIP and
 release notes to Supabase Storage, verifies both uploads, and stages the new
 `appcast.xml` in the frontend repository.
 
@@ -80,7 +80,7 @@ logs, embed it in the app, or expose it to frontend code.
 
 ### `SUPABASE_RELEASE_BUCKET`
 
-The public Storage bucket receiving DMGs and release notes:
+The public Storage bucket receiving app ZIPs and release notes:
 
 ```dotenv
 SUPABASE_RELEASE_BUCKET="mtihani-releases"
@@ -188,7 +188,7 @@ xcodebuild -project mtihani-macos.xcodeproj \
   rg 'MARKETING_VERSION|CURRENT_PROJECT_VERSION'
 ```
 
-The example above produces `Mtihani-1.1.0-2.dmg`.
+The example above produces `Mtihani-1.1.0-2.zip`.
 
 ## Write release notes
 
@@ -229,9 +229,9 @@ The script performs these operations in order:
 
 1. Archives a universal Release build with distribution signing disabled.
 2. Removes Xcode's outer ad-hoc app signature and verifies the app is unsigned.
-3. Creates an unsigned, versioned DMG containing the app and Applications link.
-4. Generates an appcast with a Sparkle EdDSA signature over the final DMG bytes.
-5. Uploads the DMG and release notes to the public Supabase bucket without
+3. Creates a versioned ZIP containing the unsigned app bundle.
+4. Generates an appcast with a Sparkle EdDSA signature over the final ZIP bytes.
+5. Uploads the ZIP and release notes to the public Supabase bucket without
    overwriting existing objects.
 6. Downloads both objects and verifies their SHA-256 hashes against the local
    files.
@@ -241,7 +241,7 @@ Local outputs are retained under:
 
 ```text
 build/releases/TIMESTAMP/Mtihani.xcarchive
-releases/Mtihani-VERSION-BUILD.dmg
+releases/Mtihani-VERSION-BUILD.zip
 releases/Mtihani-VERSION-BUILD.html
 releases/appcast.xml
 ```
@@ -251,7 +251,7 @@ releases/appcast.xml
 After the script succeeds:
 
 1. Review the staged frontend `appcast.xml` and confirm its latest enclosure
-   points to the uploaded Supabase DMG.
+   points to the uploaded Supabase ZIP.
 2. Deploy the `mtihani-app` frontend so the feed becomes available at the URL
    configured by `SUFeedURL`.
 3. Install the previous Mtihani release and select **Check for Updates…**.
@@ -260,9 +260,9 @@ After the script succeeds:
 6. Confirm session, authentication, capture, and menu-bar behavior.
 7. Announce the release only after the end-to-end update succeeds.
 
-Do not edit, recompress, or replace the DMG after appcast generation. Any byte
+Do not edit, recompress, or replace the ZIP after appcast generation. Any byte
 change invalidates the Sparkle signature and file-length metadata. Keep older
-DMGs online because existing clients may still reference cached feeds.
+archives online because existing clients may still reference cached feeds.
 
 ## Common failures
 
@@ -275,6 +275,6 @@ DMGs online because existing clients may still reference cached feeds.
 - **Supabase returns 401/403:** check `SUPABASE_URL`, the service-role key, and
   whether the key belongs to that project.
 - **Public download verification fails:** confirm the bucket is public and that
-  its file-size/MIME restrictions allow DMG and HTML uploads.
+  its file-size/MIME restrictions allow ZIP and HTML uploads.
 - **macOS blocks the app:** this is expected for an unsigned, unnotarized app;
   approve it through Finder's **Open** action or Privacy & Security.

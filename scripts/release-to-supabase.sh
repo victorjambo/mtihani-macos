@@ -95,7 +95,7 @@ fi
 
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
 build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")"
-artifact_name="Mtihani-$version-$build.dmg"
+artifact_name="Mtihani-$version-$build.zip"
 notes_name="Mtihani-$version-$build.html"
 artifact="$releases/$artifact_name"
 notes="$releases/$notes_name"
@@ -106,7 +106,7 @@ if [[ "$notes_source" != "$notes" ]]; then
     cp "$notes_source" "$notes"
 fi
 
-echo "[2/5] Creating the unsigned DMG..."
+echo "[2/5] Packaging the unsigned app..."
 bash "$script_dir/package-release.sh" "$app" "$releases"
 
 release_prefix="$base_url/storage/v1/object/public/$bucket/"
@@ -160,7 +160,7 @@ upload_and_verify() {
 }
 
 echo "[4/5] Uploading immutable release files to Supabase..."
-upload_and_verify "$artifact" application/x-apple-diskimage
+upload_and_verify "$artifact" application/zip
 upload_and_verify "$notes" 'text/html; charset=utf-8'
 
 echo "[5/5] Staging the appcast only after release files are available..."
@@ -170,7 +170,7 @@ cp "$releases/appcast.xml" "$frontend_appcast"
 cat <<EOF
 
 Release $version ($build) is prepared.
-DMG: $release_prefix$artifact_name
+App archive: $release_prefix$artifact_name
 Notes: $release_prefix$notes_name
 Appcast staged at: $frontend_appcast
 

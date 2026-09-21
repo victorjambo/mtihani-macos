@@ -1,5 +1,5 @@
 #!/bin/bash
-# Package an unsigned .app as an unsigned DMG.
+# Package an unsigned .app in a Sparkle-compatible ZIP archive.
 set -euo pipefail
 
 if [[ $# != 2 ]]; then
@@ -14,23 +14,11 @@ python3 "$script_dir/validate-update.py" app "$app" --previous-feed "$releases/a
 
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
 build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")"
-artifact="$releases/Mtihani-$version-$build.dmg"
+artifact="$releases/Mtihani-$version-$build.zip"
 [[ ! -e "$artifact" ]] || { echo "Refusing to overwrite $artifact" >&2; exit 1; }
-staging="$(mktemp -d "${TMPDIR:-/tmp}/mtihani-release.XXXXXX")"
-trap 'rm -rf "$staging"' EXIT
-ditto "$app" "$staging/$(basename "$app")"
-packaged_app="$staging/$(basename "$app")"
-if codesign -dv "$packaged_app" >/dev/null 2>&1; then
-    codesign --remove-signature "$packaged_app"
-fi
-if codesign -dv "$packaged_app" >/dev/null 2>&1; then
-    echo "Failed to remove the application signature: $packaged_app" >&2
+if codesign -dv "$app" >/dev/null 2>&1; then
+    echo "Expected an unsigned application, but a code signature is present: $app" >&2
     exit 1
 fi
-ln -s /Applications "$staging/Applications"
-hdiutil create -volname Mtihani -srcfolder "$staging" -format UDZO "$artifact"
-if codesign -dv "$artifact" >/dev/null 2>&1; then
-    echo "Expected an unsigned disk image, but a code signature is present: $artifact" >&2
-    exit 1
-fi
+ditto -c -k --sequesterRsrc --keepParent "$app" "$artifact"
 echo "Packaged $artifact. Add matching release notes, then run generate-appcast.sh."

@@ -69,23 +69,23 @@ Sparkle requires a Developer ID signed DMG to rotate a lost EdDSA key. Keep
 secure backups and follow Sparkle's key-rotation guide rather than replacing
 both signing identities at once.
 
-Releases intentionally use an unsigned app in an unsigned DMG. Sparkle EdDSA
+Releases intentionally distribute an unsigned app in a ZIP archive. Sparkle EdDSA
 still authenticates updates independently of Apple code signing:
 
 1. Xcode archives with distribution code signing disabled, then the release
    script removes Xcode's ad-hoc linker signature from the outer app.
-2. The unsigned app is packaged in an unsigned DMG.
-3. Sparkle signs the **final DMG bytes** and produces the appcast.
-4. HTTPS hosting serves the appcast, notes, and DMG independently of NestJS.
+2. The unsigned app is packaged in a ZIP with its bundle structure preserved.
+3. Sparkle signs the **final ZIP bytes** and produces the appcast.
+4. HTTPS hosting serves the appcast, notes, and ZIP independently of NestJS.
 
 This distribution model triggers macOS Gatekeeper warnings and provides no
 Apple Developer ID identity or notarization assurance. Users may need to use
 Finder's **Open** action and explicitly approve the app in Privacy & Security.
 Sparkle's EdDSA signature protects updates but does not remove those warnings.
 
-The same DMG serves direct downloads and Sparkle updates; Sparkle supports
-DMGs, so no separate ZIP update artifact is necessary. Keep app archives and
-Sparkle dSYMs for diagnostics.
+The same ZIP serves direct downloads and Sparkle updates. Users extract it and
+move `Mtihani.app` to Applications. Keep app archives and Sparkle dSYMs for
+diagnostics.
 
 ### Sandbox and signing details
 
@@ -152,8 +152,8 @@ bash scripts/release-to-supabase.sh /path/to/release-notes.html
 
 The bucket must already exist and be public. The script never overwrites a
 published object. It archives with distribution signing disabled, removes the
-outer app's ad-hoc linker signature, invokes the DMG and appcast scripts,
-uploads the versioned DMG and notes, downloads
+outer app's ad-hoc linker signature, invokes the ZIP and appcast scripts,
+uploads the versioned ZIP and notes, downloads
 both public objects to verify their SHA-256 hashes, and copies the appcast to
 `../mtihani-app/apps/frontend/public/appcast.xml` only after verification.
 Keep the service-role key outside the repository; it is read from the process
@@ -182,7 +182,7 @@ xcodebuild -project mtihani-macos.xcodeproj -scheme mtihani-macos \
 Use a fresh archive destination for each release. The app is located at
 `build/Mtihani.xcarchive/Products/Applications/Mtihani.app`.
 
-4. Produce the unsigned direct-download/Sparkle DMG:
+4. Produce the unsigned direct-download/Sparkle app ZIP:
 
 ```bash
 bash scripts/package-release.sh \
@@ -190,14 +190,13 @@ bash scripts/package-release.sh \
 ```
 
 The script verifies bundle configuration, increasing builds, and embedded
-Sparkle components. It preserves executable permissions/symlinks using `ditto`,
-removes any outer ad-hoc app signature from the staging copy, verifies the copy
-is unsigned, adds an Applications shortcut, and creates an unsigned DMG. It
-refuses to overwrite an existing versioned artifact.
+Sparkle components. It verifies the app is unsigned, then uses `ditto` with
+resource preservation and `--keepParent` to archive the complete app bundle.
+It refuses to overwrite an existing versioned artifact.
 Existing `dist/` artifacts are unchanged.
 
 5. Add concise matching notes, for example `releases/Mtihani-1.1.0-2.html`,
-   alongside `Mtihani-1.1.0-2.dmg`. Use a complete HTML document with a body
+   alongside `Mtihani-1.1.0-2.zip`. Use a complete HTML document with a body
    for a linked release-notes file; HTML fragments are embedded by Sparkle.
    Markdown and text files also work in Sparkle 2.9.6. Then generate/sign:
 
@@ -210,20 +209,20 @@ The official `generate_appcast` extracts versions and metadata and creates
 EdDSA signatures using Keychain account `mtihani`. It updates `appcast.xml`
 and includes release notes. The wrapper checks HTTPS URLs, signatures' metadata,
 archive lengths, and distinct build numbers; Sparkle performs cryptography.
-Deltas are disabled for V1. Do not alter the DMG after appcast generation.
+Deltas are disabled for V1. Do not alter the ZIP after appcast generation.
 Keep older artifacts available even if the generator moves them to
 `old_updates/`; existing clients or cached feeds may still reference them.
 
 ```text
 releases/
-  Mtihani-1.0.0-1.dmg
+  Mtihani-1.0.0-1.zip
   Mtihani-1.0.0-1.html
-  Mtihani-1.1.0-2.dmg
+  Mtihani-1.1.0-2.zip
   Mtihani-1.1.0-2.html
   appcast.xml
 ```
 
-6. Upload the DMG and linked notes first. Verify their HTTPS URLs and content
+6. Upload the ZIP and linked notes first. Verify their HTTPS URLs and content
    lengths, then replace `apps/frontend/public/appcast.xml` with the generated
    `appcast.xml` and deploy it last.
    Verify the feed over HTTPS with `curl --fail --proto '=https'
@@ -260,15 +259,15 @@ sandbox containers, installations, and capture permissions from daily use.
    `MARKETING_VERSION=...`, and `CURRENT_PROJECT_VERSION=...` to `xcodebuild`.
    Both builds must use the same test ID, feed, and public key. Use separate
    output directories and preserve the old and new bundles.
-2. Use the unsigned DMG packaging flow above with the test settings. A ZIP is
-   also supported by Sparkle for development-only update testing; keep those
-   ZIPs in a separate test release directory. Never mutate an app's Info.plist
+2. Use the unsigned app ZIP packaging flow above with the test settings. Keep
+   test ZIPs in a separate test release directory. Never mutate an app's Info.plist
    after generating its Sparkle archive signature.
 3. Put only the new artifact and matching notes in the test release directory.
    Run `generate-appcast.sh` with `SPARKLE_KEY_ACCOUNT=mtihani-update-test` and
    the private HTTPS download prefix. Host the generated files there.
 4. Install the **old** app in a writable Applications directory; quit other
-   test copies. Do not run from a DMG, Xcode debugger, or translocated download.
+   test copies. Do not run from the downloaded ZIP, Xcode debugger, or a
+   translocated location.
 5. Launch it and select **Check for Updates…**. Confirm Sparkle finds `1.0.1`,
    displays notes, validates the signature, installs, and relaunches. Confirm
    **Version 1.0.1 (2)** and unchanged connection/capture preferences.
