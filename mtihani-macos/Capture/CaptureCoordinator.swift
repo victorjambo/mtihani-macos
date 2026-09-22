@@ -4,6 +4,19 @@ import OSLog
 
 typealias MtihaniAPIClientFactory = @MainActor (AppConfiguration) -> any MtihaniAPIClient
 
+/// How long the capture buffer waits for another shot before uploading.
+enum CaptureBufferWindow: Equatable, Sendable {
+    /// Finalizes a buffered shot immediately — no waiting for more. Used by
+    /// tests to keep single-trigger-uploads-at-once behavior deterministic.
+    case disabled
+    /// A fixed duration, independent of user Settings — used by tests that
+    /// exercise real buffering without waiting on `AppSettings.bufferWindowSeconds`.
+    case fixed(nanoseconds: UInt64)
+    /// Reads `AppSettings.bufferWindowSeconds` fresh on every trigger, so a
+    /// change in Settings applies immediately. The production default.
+    case settingsDriven
+}
+
 @MainActor
 final class CaptureCoordinator: ObservableObject {
     var captureAllowed: (() -> Bool)?
@@ -13,6 +26,9 @@ final class CaptureCoordinator: ObservableObject {
         accountGeneration = UUID()
         closedSessionID = nil
         resetTask?.cancel()
+        bufferTask?.cancel()
+        bufferedImages = []
+        bufferedContext = nil
         state = .idle
         connectionState = .notConfigured
     }
@@ -34,11 +50,21 @@ final class CaptureCoordinator: ObservableObject {
     private var closedSessionID: String?
     private var resetTask: Task<Void, Never>?
 
+    // Multi-image buffering: a trigger while idle/buffering captures another
+    // shot into the same pending upload instead of starting a new one. A
+    // finalize timer (reset on every new shot) flushes the buffer as one
+    // capture once triggering goes quiet — purely timer-driven, no count cap.
+    private var bufferedImages: [CapturedImage] = []
+    private var bufferedContext: RequestContext?
+    private var bufferTask: Task<Void, Never>?
+    private let bufferWindow: CaptureBufferWindow
+
     init(
         settings: AppSettings,
         screenCapturer: any ScreenCapturing,
         permissionService: any PermissionsServicing,
         terminalStateResetNanoseconds: UInt64? = 2_000_000_000,
+        bufferWindow: CaptureBufferWindow = .settingsDriven,
         apiClientFactory: @escaping MtihaniAPIClientFactory,
         logger: Logger = Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "com.victorjambo.mtihani-macos",
@@ -49,6 +75,7 @@ final class CaptureCoordinator: ObservableObject {
         self.screenCapturer = screenCapturer
         self.permissionService = permissionService
         self.terminalStateResetNanoseconds = terminalStateResetNanoseconds
+        self.bufferWindow = bufferWindow
         self.apiClientFactory = apiClientFactory
         self.logger = logger
         connectionState =
@@ -101,11 +128,76 @@ final class CaptureCoordinator: ObservableObject {
                 throw ScreenCaptureError.pngEncodingFailed
             }
 
-            state = .uploading
+            bufferedImages.append(image)
+            bufferedContext = requestContext
+            state = .buffering(count: bufferedImages.count)
+
+            let windowNanoseconds: UInt64?
+            switch bufferWindow {
+            case .disabled:
+                windowNanoseconds = nil
+            case .fixed(let nanoseconds):
+                windowNanoseconds = nanoseconds
+            case .settingsDriven:
+                windowNanoseconds = UInt64(settings.bufferWindowSeconds) * 1_000_000_000
+            }
+
+            guard let windowNanoseconds else {
+                await finalizeBufferedCapture(currentAccount: currentAccount)
+                return
+            }
+
+            bufferTask?.cancel()
+            bufferTask = Task { [weak self] in
+                await self?.waitOutBufferWindow(
+                    remainingNanoseconds: windowNanoseconds,
+                    currentAccount: currentAccount
+                )
+            }
+        } catch is CancellationError {
+            guard accountGeneration == currentAccount else { return }
+            state = bufferedImages.isEmpty ? .idle : .buffering(count: bufferedImages.count)
+        } catch {
+            guard accountGeneration == currentAccount else { return }
+            handleCaptureError(error, context: requestContext)
+        }
+    }
+
+    /// Sleeps out the coalescing window in ~1s steps, logging a countdown so
+    /// it's visible when to expect the batch to upload — without changing the
+    /// total wait, so a short test window still behaves exactly as before.
+    private func waitOutBufferWindow(remainingNanoseconds: UInt64, currentAccount: UUID) async {
+        let oneSecond: UInt64 = 1_000_000_000
+        var remaining = remainingNanoseconds
+
+        while remaining > 0 {
+            let step = min(oneSecond, remaining)
+            let secondsRemaining = (remaining + oneSecond - 1) / oneSecond
+            logger.info("Buffer window: \(secondsRemaining, privacy: .public)s remaining before upload")
+
+            try? await Task.sleep(nanoseconds: step)
+            guard !Task.isCancelled else { return }
+            remaining -= step
+        }
+
+        await finalizeBufferedCapture(currentAccount: currentAccount)
+    }
+
+    private func finalizeBufferedCapture(currentAccount: UUID) async {
+        guard accountGeneration == currentAccount else { return }
+        guard let requestContext = bufferedContext, !bufferedImages.isEmpty else { return }
+
+        let images = bufferedImages
+        bufferedImages = []
+        bufferedContext = nil
+
+        state = .uploading
+
+        do {
             let client = apiClientFactory(requestContext.configuration)
             let acceptedCapture = try await client.uploadCapture(
                 sessionId: requestContext.sessionID,
-                screenshot: image.data,
+                screenshots: images.map(\.data),
                 language: requestContext.language
             )
             guard accountGeneration == currentAccount else { return }
@@ -115,7 +207,7 @@ final class CaptureCoordinator: ObservableObject {
             }
             state = .success(captureID: acceptedCapture.captureId)
             logger.info(
-                "Capture accepted by backend: captureID=\(acceptedCapture.captureId, privacy: .public)"
+                "Capture accepted by backend: captureID=\(acceptedCapture.captureId, privacy: .public), imageCount=\(images.count)"
             )
             scheduleReturnToReady()
         } catch is CancellationError {

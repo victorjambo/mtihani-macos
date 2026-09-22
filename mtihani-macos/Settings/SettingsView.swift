@@ -217,6 +217,21 @@ struct SettingsView: View {
                         .secondary)
                 }.padding(10)
             }
+            GroupBox {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(
+                        "Triggering again within \(settings.bufferWindowSeconds)s adds another screenshot to the same capture, for questions that scroll off one screen."
+                    )
+                    .foregroundStyle(.secondary)
+                    Divider()
+                    Stepper(
+                        "Buffer window: \(settings.bufferWindowSeconds)s",
+                        value: binding(\.bufferWindowSeconds), in: 5...60
+                    )
+                    Text("Choose between 5 and 60 seconds.").font(.caption).foregroundStyle(
+                        .secondary)
+                }.padding(10)
+            }
             LabeledContent("Capture display", value: "Display containing the pointer")
             Label("Clicks inside Mtihani do not trigger captures.", systemImage: "info.circle")
                 .foregroundStyle(.secondary)

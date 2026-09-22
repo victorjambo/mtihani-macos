@@ -3,15 +3,21 @@ import Foundation
 enum CaptureState: Equatable, Sendable {
     case idle
     case capturing
+    /// One or more screenshots captured for a long question; still open to
+    /// more shots until the coalescing window elapses.
+    case buffering(count: Int)
     case uploading
     case success(captureID: String)
     case failed(message: String)
 
+    /// Only blocks a *new* trigger while a screenshot grab or upload is
+    /// actively in flight. Buffering deliberately stays outside this so a
+    /// repeat trigger can add another shot to the same capture.
     var isProcessing: Bool {
         switch self {
         case .capturing, .uploading:
             true
-        case .idle, .success, .failed:
+        case .idle, .buffering, .success, .failed:
             false
         }
     }
@@ -22,6 +28,8 @@ enum CaptureState: Equatable, Sendable {
             "Ready"
         case .capturing:
             "Capturing…"
+        case let .buffering(count):
+            count == 1 ? "1 screenshot buffered" : "\(count) screenshots buffered"
         case .uploading:
             "Uploading…"
         case .success:
@@ -33,6 +41,8 @@ enum CaptureState: Equatable, Sendable {
 
     var detail: String? {
         switch self {
+        case .buffering:
+            "Trigger again to add another screenshot, or wait to send."
         case let .success(captureID):
             "Capture \(captureID) was accepted."
         case let .failed(message):

@@ -235,7 +235,7 @@ private final class AppStateMockAPIClient: MtihaniAPIClient {
 
     func uploadCapture(
         sessionId: String,
-        screenshot: Data,
+        screenshots: [Data],
         language: String?
     ) async throws -> AcceptedCapture {
         AcceptedCapture(

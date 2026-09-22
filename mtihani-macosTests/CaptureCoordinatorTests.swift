@@ -46,7 +46,7 @@ final class CaptureCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.state, .success(captureID: "capture-123"))
         XCTAssertEqual(coordinator.connectionState, .connected)
         XCTAssertEqual(apiClient.lastLanguage, "typescript")
-        XCTAssertEqual(apiClient.lastScreenshot, screenCapturer.image.data)
+        XCTAssertEqual(apiClient.lastScreenshots, [screenCapturer.image.data])
     }
 
     func testCaptureFailureDoesNotAttemptUpload() async {
@@ -263,6 +263,78 @@ final class CaptureCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.state, .success(captureID: "capture-123"))
     }
 
+    func testTriggersWithinTheBufferWindowUploadAsOneCaptureWithSeveralImages() async {
+        let settings = configuredSettings()
+        let screenCapturer = MockScreenCapturer()
+        let apiClient = MockAPIClient()
+        let coordinator = makeCoordinator(
+            settings: settings,
+            screenCapturer: screenCapturer,
+            apiClient: apiClient,
+            permissions: MockPermissionsService(state: .granted),
+            bufferWindow: .fixed(nanoseconds: 20_000_000)
+        )
+
+        await coordinator.captureAndUpload()
+        XCTAssertEqual(coordinator.state, .buffering(count: 1))
+        XCTAssertTrue(coordinator.canCapture)
+
+        await coordinator.captureAndUpload()
+        XCTAssertEqual(coordinator.state, .buffering(count: 2))
+        XCTAssertEqual(apiClient.uploadCount, 0)
+
+        try? await Task.sleep(nanoseconds: 60_000_000)
+
+        XCTAssertEqual(screenCapturer.captureCount, 2)
+        XCTAssertEqual(apiClient.uploadCount, 1)
+        XCTAssertEqual(apiClient.lastScreenshots?.count, 2)
+        XCTAssertEqual(coordinator.state, .success(captureID: "capture-123"))
+    }
+
+    func testASingleBufferedShotUploadsAloneOnceTheWindowElapses() async {
+        let settings = configuredSettings()
+        let screenCapturer = MockScreenCapturer()
+        let apiClient = MockAPIClient()
+        let coordinator = makeCoordinator(
+            settings: settings,
+            screenCapturer: screenCapturer,
+            apiClient: apiClient,
+            permissions: MockPermissionsService(state: .granted),
+            bufferWindow: .fixed(nanoseconds: 20_000_000)
+        )
+
+        await coordinator.captureAndUpload()
+        XCTAssertEqual(coordinator.state, .buffering(count: 1))
+
+        try? await Task.sleep(nanoseconds: 60_000_000)
+
+        XCTAssertEqual(apiClient.uploadCount, 1)
+        XCTAssertEqual(apiClient.lastScreenshots?.count, 1)
+    }
+
+    func testSettingsDrivenBufferWindowDoesNotFinalizeImmediately() async {
+        let settings = configuredSettings()
+        settings.bufferWindowSeconds = 5
+        let screenCapturer = MockScreenCapturer()
+        let apiClient = MockAPIClient()
+        let coordinator = CaptureCoordinator(
+            settings: settings,
+            screenCapturer: screenCapturer,
+            permissionService: MockPermissionsService(state: .granted),
+            terminalStateResetNanoseconds: nil,
+            bufferWindow: .settingsDriven,
+            apiClientFactory: { _ in apiClient }
+        )
+
+        await coordinator.captureAndUpload()
+
+        // A real (multi-second) window was scheduled rather than finalizing
+        // synchronously, confirming .settingsDriven read AppSettings and
+        // didn't collapse to immediate upload.
+        XCTAssertEqual(coordinator.state, .buffering(count: 1))
+        XCTAssertEqual(apiClient.uploadCount, 0)
+    }
+
     private func configuredSettings() -> AppSettings {
         let settings = AppSettings(
             defaults: defaults,
@@ -277,13 +349,15 @@ final class CaptureCoordinatorTests: XCTestCase {
         settings: AppSettings,
         screenCapturer: MockScreenCapturer,
         apiClient: MockAPIClient,
-        permissions: MockPermissionsService
+        permissions: MockPermissionsService,
+        bufferWindow: CaptureBufferWindow = .disabled
     ) -> CaptureCoordinator {
         CaptureCoordinator(
             settings: settings,
             screenCapturer: screenCapturer,
             permissionService: permissions,
             terminalStateResetNanoseconds: nil,
+            bufferWindow: bufferWindow,
             apiClientFactory: { _ in apiClient }
         )
     }
@@ -339,7 +413,7 @@ private final class MockAPIClient: MtihaniAPIClient {
     var shouldSuspendUpload = false
     var onUpload: (() -> Void)?
     private(set) var uploadCount = 0
-    private(set) var lastScreenshot: Data?
+    private(set) var lastScreenshots: [Data]?
     private(set) var lastLanguage: String?
     private var uploadContinuation: CheckedContinuation<AcceptedCapture, Error>?
 
@@ -360,11 +434,11 @@ private final class MockAPIClient: MtihaniAPIClient {
 
     func uploadCapture(
         sessionId: String,
-        screenshot: Data,
+        screenshots: [Data],
         language: String?
     ) async throws -> AcceptedCapture {
         uploadCount += 1
-        lastScreenshot = screenshot
+        lastScreenshots = screenshots
         lastLanguage = language
         onUpload?()
 

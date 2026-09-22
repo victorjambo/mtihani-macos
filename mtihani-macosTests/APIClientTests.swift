@@ -46,7 +46,7 @@ final class APIClientTests: XCTestCase {
         let request = try APIRequestBuilder(baseURL: baseURL, accessToken: accessToken)
             .uploadCaptureRequest(
                 sessionId: "session-123",
-                screenshot: Data("PNG-DATA".utf8),
+                screenshots: [Data("PNG-DATA".utf8)],
                 language: "typescript",
                 boundary: "Boundary-123"
             )
@@ -80,7 +80,7 @@ final class APIClientTests: XCTestCase {
         let request = try APIRequestBuilder(baseURL: baseURL, accessToken: accessToken)
             .uploadCaptureRequest(
                 sessionId: "session-123",
-                screenshot: Data("PNG-DATA".utf8),
+                screenshots: [Data("PNG-DATA".utf8)],
                 language: nil,
                 boundary: "Boundary-123"
             )
@@ -181,7 +181,7 @@ final class APIClientTests: XCTestCase {
 
         let capture = try await client.uploadCapture(
             sessionId: "session-123",
-            screenshot: Data([0x89, 0x50, 0x4E, 0x47]),
+            screenshots: [Data([0x89, 0x50, 0x4E, 0x47])],
             language: nil
         )
 
@@ -192,7 +192,7 @@ final class APIClientTests: XCTestCase {
         await assertAPIError(.invalidResponse) {
             try await client.uploadCapture(
                 sessionId: "session-123",
-                screenshot: Data([0x89, 0x50, 0x4E, 0x47]),
+                screenshots: [Data([0x89, 0x50, 0x4E, 0x47])],
                 language: nil
             )
         }
@@ -211,7 +211,7 @@ final class APIClientTests: XCTestCase {
         await assertAPIError(.sessionClosed) {
             try await client.uploadCapture(
                 sessionId: "session-123",
-                screenshot: Data([0x89, 0x50, 0x4E, 0x47]),
+                screenshots: [Data([0x89, 0x50, 0x4E, 0x47])],
                 language: nil
             )
         }

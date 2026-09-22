@@ -124,6 +124,8 @@ struct AppConfiguration: Equatable, Sendable {
 final class AppSettings: ObservableObject {
     static let defaultRequiredClickCount = 3
     static let requiredClickCountRange = 3...6
+    static let defaultBufferWindowSeconds = 10
+    static let bufferWindowSecondsRange = 5...60
 
     let apiBaseURL: String
 
@@ -158,6 +160,17 @@ final class AppSettings: ObservableObject {
             let bounded = min(max(requiredClickCount, 3), 6)
             if requiredClickCount != bounded { requiredClickCount = bounded }
             defaults.set(requiredClickCount, forKey: Keys.requiredClickCount)
+        }
+    }
+
+    @Published var bufferWindowSeconds: Int {
+        didSet {
+            let bounded = min(
+                max(bufferWindowSeconds, Self.bufferWindowSecondsRange.lowerBound),
+                Self.bufferWindowSecondsRange.upperBound
+            )
+            if bufferWindowSeconds != bounded { bufferWindowSeconds = bounded }
+            defaults.set(bufferWindowSeconds, forKey: Keys.bufferWindowSeconds)
         }
     }
 
@@ -212,11 +225,21 @@ final class AppSettings: ObservableObject {
             max(savedClickCount, Self.requiredClickCountRange.lowerBound),
             Self.requiredClickCountRange.upperBound
         )
+
+        let savedBufferWindow =
+            defaults.object(forKey: Keys.bufferWindowSeconds)
+            .flatMap { $0 as? NSNumber }?
+            .intValue ?? Self.defaultBufferWindowSeconds
+        bufferWindowSeconds = min(
+            max(savedBufferWindow, Self.bufferWindowSecondsRange.lowerBound),
+            Self.bufferWindowSecondsRange.upperBound
+        )
     }
 
     private enum Keys {
         static let preferredLanguage = "settings.preferredLanguage"
         static let isTripleClickEnabled = "settings.tripleClickEnabled"
         static let requiredClickCount = "settings.requiredClickCount"
+        static let bufferWindowSeconds = "settings.bufferWindowSeconds"
     }
 }
