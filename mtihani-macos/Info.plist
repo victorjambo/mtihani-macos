@@ -50,7 +50,7 @@
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>Mtihani captures the display containing your pointer only when you request a coding-practice screenshot.</string>
     <key>APIBaseURL</key>
-    <string>$(API_SCHEME)://$(API_HOST)/api</string>
+    <string>$(API_URL)/api</string>
     <key>FrontendBaseURL</key>
     <string>$(FRONTEND_BASE_URL)</string>
     <key>DesktopEnvironment</key>

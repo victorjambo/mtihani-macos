@@ -9,8 +9,8 @@
 // https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
 
 // APP
-API_SCHEME = https
-API_HOST = mtihani-app-production.up.railway.app
+
+API_URL = https:/$()/mtihani-app-production.up.railway.app
 FRONTEND_BASE_URL = https:/$()/mtihani-app-frontend.vercel.app
 DESKTOP_ENVIRONMENT = production
 DESKTOP_CALLBACK_SCHEME = com.mtihani.desktop

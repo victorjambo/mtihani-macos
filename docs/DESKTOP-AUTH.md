@@ -5,7 +5,7 @@ acceptance checklist live in the sibling application's
 [desktop authentication guide](../../mtihani-app/docs/DESKTOP-AUTH.md).
 
 Use `Debug.xcconfig` for local development and `Release.xcconfig` for distribution.
-APIBaseURL is still composed from API_SCHEME/API_HOST in Info.plist. FrontendBaseURL
+APIBaseURL is composed from API_URL in Info.plist. FrontendBaseURL
 comes from FRONTEND_BASE_URL. No server URL or client key is entered in Settings.
 
 | Build | Bundle ID | Registered callback |

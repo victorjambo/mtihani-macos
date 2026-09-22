@@ -9,8 +9,8 @@
 // https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
 
 // APP
-API_SCHEME = http
-API_HOST = 127.0.0.1:3000
+
+API_URL = http:/$()/127.0.0.1:3000
 FRONTEND_BASE_URL = http:/$()/localhost:5173
 DESKTOP_ENVIRONMENT = development
 DESKTOP_CALLBACK_SCHEME = com.mtihani.desktop.dev
