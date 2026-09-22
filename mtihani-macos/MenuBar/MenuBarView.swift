@@ -201,6 +201,8 @@ struct MenuBarView: View {
             "circle.fill"
         case .capturing:
             "camera.viewfinder"
+        case .buffering:
+            "photo.stack"
         case .uploading:
             "arrow.up.circle.fill"
         case .success:
@@ -214,7 +216,7 @@ struct MenuBarView: View {
         switch coordinator.state {
         case .idle:
             appState.canCapture ? .green : .orange
-        case .capturing, .uploading:
+        case .capturing, .buffering, .uploading:
             .blue
         case .success:
             .green

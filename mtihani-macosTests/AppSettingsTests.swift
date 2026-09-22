@@ -30,6 +30,7 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.preferredLanguage, .automatic)
         XCTAssertTrue(settings.isTripleClickEnabled)
         XCTAssertEqual(settings.requiredClickCount, 3)
+        XCTAssertEqual(settings.bufferWindowSeconds, 10)
     }
 
     func testValuesPersistAcrossInstances() {
@@ -40,6 +41,7 @@ final class AppSettingsTests: XCTestCase {
         settings?.preferredLanguage = .python
         settings?.isTripleClickEnabled = false
         settings?.requiredClickCount = 4
+        settings?.bufferWindowSeconds = 20
         settings = nil
 
         let restored = AppSettings(defaults: defaults, apiBaseURL: apiBaseURL)
@@ -56,6 +58,7 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(restored.sessionID, "")
         XCTAssertFalse(restored.isTripleClickEnabled)
         XCTAssertEqual(restored.requiredClickCount, 4)
+        XCTAssertEqual(restored.bufferWindowSeconds, 20)
     }
 
     func testPersistedClickCountIsClampedToSupportedRange() {
@@ -77,6 +80,23 @@ final class AppSettingsTests: XCTestCase {
         settings.accessToken = "memory-only"
         XCTAssertNil(defaults.object(forKey: "settings.apiKey"))
         XCTAssertNil(defaults.object(forKey: "settings.accessToken"))
+    }
+
+    func testPersistedBufferWindowIsClampedToSupportedRange() {
+        defaults.set(999, forKey: "settings.bufferWindowSeconds")
+
+        XCTAssertEqual(
+            AppSettings(defaults: defaults, apiBaseURL: apiBaseURL).bufferWindowSeconds,
+            60
+        )
+    }
+
+    func testRuntimeBufferWindowIsClamped() {
+        let settings = AppSettings(defaults: defaults, apiBaseURL: apiBaseURL)
+        settings.bufferWindowSeconds = 1
+        XCTAssertEqual(settings.bufferWindowSeconds, 5)
+        settings.bufferWindowSeconds = 999
+        XCTAssertEqual(settings.bufferWindowSeconds, 60)
     }
 
     func testConfigurationNormalizesTrailingSlash() throws {

@@ -52,6 +52,7 @@ final class GlobalClickMonitor: CaptureTriggerMonitor {
                         return
                     }
 
+                    Self.logger.info("Click trigger fired (count: \(event.clickCount))")
                     Task { @MainActor in
                         onTrigger()
                     }

@@ -8,7 +8,7 @@ protocol MtihaniAPIClient {
 
     func uploadCapture(
         sessionId: String,
-        screenshot: Data,
+        screenshots: [Data],
         language: String?
     ) async throws -> AcceptedCapture
 }
@@ -65,12 +65,14 @@ nonisolated struct APIRequestBuilder: Sendable {
 
     func uploadCaptureRequest(
         sessionId: String,
-        screenshot: Data,
+        screenshots: [Data],
         language: String?,
         boundary: String = "Mtihani-\(UUID().uuidString)"
     ) throws -> URLRequest {
         var form = MultipartFormData(boundary: boundary)
-        form.appendPNG(screenshot)
+        for screenshot in screenshots {
+            form.appendPNG(screenshot)
+        }
 
         if let language {
             form.appendLanguage(language)
@@ -188,14 +190,14 @@ final class URLSessionMtihaniAPIClient: MtihaniAPIClient {
 
     func uploadCapture(
         sessionId: String,
-        screenshot: Data,
+        screenshots: [Data],
         language: String?
     ) async throws -> AcceptedCapture {
         let requestBuilder = requestBuilder
         let request = try await Task.detached(priority: .userInitiated) {
             try requestBuilder.uploadCaptureRequest(
                 sessionId: sessionId,
-                screenshot: screenshot,
+                screenshots: screenshots,
                 language: language
             )
         }.value

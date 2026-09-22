@@ -156,6 +156,8 @@ final class MenuBarController: NSObject, NSPopoverDelegate {
             "circle.fill"
         case .capturing:
             "camera.viewfinder"
+        case .buffering:
+            "photo.stack"
         case .uploading:
             "arrow.up.circle.fill"
         case .success:
