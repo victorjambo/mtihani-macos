@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build and package an unsigned app, publish it, and stage Mtihani's Sparkle feed.
+# Build and package a universal app, publish it, and stage Mtihani's Sparkle feed.
 set -euo pipefail
 
 usage() {
@@ -71,7 +71,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "[1/5] Archiving the unsigned Release build..."
+echo "[1/5] Archiving the universal Release build..."
 xcodebuild -project "$project_root/mtihani-macos.xcodeproj" \
     -scheme mtihani-macos \
     -configuration Release \
@@ -81,17 +81,10 @@ xcodebuild -project "$project_root/mtihani-macos.xcodeproj" \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGNING_REQUIRED=NO \
     CODE_SIGN_IDENTITY='' \
-    ONLY_ACTIVE_ARCH=NO archive
+    ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO archive
 
 app="$archive/Products/Applications/Mtihani.app"
 [[ -d "$app" ]] || { echo "Archived application not found: $app" >&2; exit 1; }
-if codesign -dv "$app" >/dev/null 2>&1; then
-    codesign --remove-signature "$app"
-fi
-if codesign -dv "$app" >/dev/null 2>&1; then
-    echo "Failed to remove the archived application's outer signature." >&2
-    exit 1
-fi
 
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
 build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")"
@@ -106,7 +99,7 @@ if [[ "$notes_source" != "$notes" ]]; then
     cp "$notes_source" "$notes"
 fi
 
-echo "[2/5] Packaging the unsigned app..."
+echo "[2/5] Ad-hoc signing and packaging the universal app..."
 bash "$script_dir/package-release.sh" "$app" "$releases"
 
 release_prefix="$base_url/storage/v1/object/public/$bucket/"

@@ -1,8 +1,10 @@
 # Unsigned macOS release runbook
 
-This runbook publishes an **unsigned** `Mtihani.app` inside a ZIP archive.
-The release script builds the app, removes Xcode's ad-hoc outer signature,
-creates the ZIP, signs the ZIP bytes with Sparkle EdDSA, uploads the ZIP and
+This runbook publishes a **universal, ad-hoc signed** `Mtihani.app` inside a ZIP
+archive, without a Developer ID certificate or Apple notarization. Native Apple
+silicon code requires a valid signature, so the app keeps an ad-hoc signature.
+The release script builds both architectures, signs the app with its sandbox
+entitlements, creates the ZIP, signs the ZIP bytes with Sparkle EdDSA, uploads it and
 release notes to Supabase Storage, verifies both uploads, and stages the new
 `appcast.xml` in the frontend repository.
 
@@ -228,8 +230,9 @@ bash scripts/release-to-supabase.sh /release/mtihani-1.1.0-notes.html
 The script performs these operations in order:
 
 1. Archives a universal Release build with distribution signing disabled.
-2. Removes Xcode's outer ad-hoc app signature and verifies the app is unsigned.
-3. Creates a versioned ZIP containing the unsigned app bundle.
+2. Verifies both CPU architectures, applies ad-hoc signing with the sandbox
+   entitlements, and verifies signatures on all architectures.
+3. Creates a versioned ZIP containing the signed app bundle.
 4. Generates an appcast with a Sparkle EdDSA signature over the final ZIP bytes.
 5. Uploads the ZIP and release notes to the public Supabase bucket without
    overwriting existing objects.
@@ -276,5 +279,5 @@ archives online because existing clients may still reference cached feeds.
   whether the key belongs to that project.
 - **Public download verification fails:** confirm the bucket is public and that
   its file-size/MIME restrictions allow ZIP and HTML uploads.
-- **macOS blocks the app:** this is expected for an unsigned, unnotarized app;
+- **macOS blocks the app:** this is expected without Developer ID signing and notarization;
   approve it through Finder's **Open** action or Privacy & Security.

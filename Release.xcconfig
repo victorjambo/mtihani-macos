@@ -10,8 +10,8 @@
 
 // APP
 
-API_URL = https:/$()/mtihani-app-production.up.railway.app
-FRONTEND_BASE_URL = https:/$()/mtihani-app-frontend.vercel.app
+API_URL = https:/$()/mtihani-backend.onrender.com
+FRONTEND_BASE_URL = https:/$()/mtihani-client.vercel.app
 DESKTOP_ENVIRONMENT = production
 DESKTOP_CALLBACK_SCHEME = com.mtihani.desktop
 
@@ -19,12 +19,12 @@ DESKTOP_CALLBACK_SCHEME = com.mtihani.desktop
 
 // Stable HTTPS appcast, independent of the application API.
 // $() prevents xcconfig from treating the URL's // as a comment.
-SPARKLE_FEED_URL = https:/$()/mtihani-app-frontend.vercel.app/appcast.xml
+SPARKLE_FEED_URL = https:/$()/mtihani-client.vercel.app/appcast.xml
 
-// Public key for Keychain account "mtihani", created with Sparkle generate_keys.
+// Public key for Keychain account "mtihani", generated on 2026-10-26.
 // Keep the corresponding private key in Keychain / secure release secret storage.
 // Test builds may override this setting using -xcconfig / xcodebuild.
-SPARKLE_PUBLIC_ED_KEY = iwA+ZX7T0w56S8td4PKbfL+vMdA0iKfepj70P/TVTyc=
+SPARKLE_PUBLIC_ED_KEY = vMnpBFEfq61n6bBIOGPaBFJ7e9zao2WTKUkjn1t1nMs=
 
 // Required for Developer ID distribution and notarization.
 ENABLE_HARDENED_RUNTIME = YES

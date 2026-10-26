@@ -24,6 +24,10 @@ protocol UpdateDriving: AnyObject {
 
 @MainActor
 final class UpdateManager: ObservableObject {
+    // Avoid a synthesized isolated-deinit crash on older Swift runtimes.
+    // https://github.com/swiftlang/swift/issues/88036
+    nonisolated deinit {}
+
     @Published private(set) var state: UpdateState
     @Published private(set) var startupError: String?
 

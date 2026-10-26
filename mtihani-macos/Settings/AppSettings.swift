@@ -122,6 +122,10 @@ struct AppConfiguration: Equatable, Sendable {
 
 @MainActor
 final class AppSettings: ObservableObject {
+    // Avoid a synthesized isolated-deinit crash on older Swift runtimes.
+    // https://github.com/swiftlang/swift/issues/88036
+    nonisolated deinit {}
+
     static let defaultRequiredClickCount = 3
     static let requiredClickCountRange = 3...6
     static let defaultBufferWindowSeconds = 10

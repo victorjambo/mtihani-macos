@@ -95,6 +95,9 @@ final class UpdateManagerTests: XCTestCase {
 
 @MainActor
 private final class MockUpdateDriver: UpdateDriving {
+    // Match the older-runtime deinit workaround used by UpdateManager.
+    nonisolated deinit {}
+
     let changes = CurrentValueSubject<UpdateState, Never>(
         UpdateState(
             automaticallyChecksForUpdates: true, allowsAutomaticUpdates: true

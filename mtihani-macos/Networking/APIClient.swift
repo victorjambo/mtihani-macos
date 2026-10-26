@@ -20,6 +20,9 @@ protocol HTTPTransport: AnyObject {
 
 @MainActor
 final class URLSessionHTTPTransport: HTTPTransport {
+    // Render Free can take about a minute to wake after inactivity.
+    static let backendRequestTimeout: TimeInterval = 120
+
     private let urlSession: URLSession
 
     init(urlSession: URLSession = .shared) {
@@ -215,6 +218,7 @@ final class URLSessionMtihaniAPIClient: MtihaniAPIClient {
         expectedStatusCode: Int
     ) async throws -> Response {
         var request = originalRequest
+        request.timeoutInterval = URLSessionHTTPTransport.backendRequestTimeout
         var data: Data
         var response: URLResponse
 

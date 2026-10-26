@@ -25,6 +25,10 @@ protocol PermissionsServicing: AnyObject {
 
 @MainActor
 final class PermissionsService: ObservableObject, PermissionsServicing {
+    // Avoid a synthesized isolated-deinit crash on older Swift runtimes.
+    // https://github.com/swiftlang/swift/issues/88036
+    nonisolated deinit {}
+
     typealias PermissionCheck = () -> Bool
     typealias PermissionRequest = () -> Bool
     typealias SettingsOpener = (URL) -> Bool
@@ -65,7 +69,9 @@ final class PermissionsService: ObservableObject, PermissionsServicing {
             checkScreenRecordingAccess() ? .granted : .denied
 
         if refreshedState != screenRecordingState {
-            logger.info("Screen Recording permission state changed to \(refreshedState.rawValue, privacy: .public)")
+            logger.info(
+                "Screen Recording permission state changed to \(refreshedState.rawValue, privacy: .public)"
+            )
             screenRecordingState = refreshedState
         }
 
@@ -87,14 +93,19 @@ final class PermissionsService: ObservableObject, PermissionsServicing {
         logger.notice("Requesting Screen Recording permission")
 
         screenRecordingState = requestScreenRecordingAccess() ? .granted : .denied
-        logger.info("Screen Recording permission request completed with state \(self.screenRecordingState.rawValue, privacy: .public)")
+        logger.info(
+            "Screen Recording permission request completed with state \(self.screenRecordingState.rawValue, privacy: .public)"
+        )
         return screenRecordingState
     }
 
     func openScreenRecordingSettings() {
-        guard let settingsURL = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-        ) else {
+        guard
+            let settingsURL = URL(
+                string:
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+            )
+        else {
             logger.error("Could not construct the Screen Recording settings URL")
             return
         }

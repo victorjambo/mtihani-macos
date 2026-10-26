@@ -264,6 +264,29 @@ final class APIClientTests: XCTestCase {
         await assertAPIError(.transport) { try await client.createSession() }
         XCTAssertEqual(transport.requests, 4)
     }
+
+    @MainActor
+    func testTimedOutUploadIsNotRetried() async {
+        let transport = MockHTTPTransport()
+        transport.error = URLError(.timedOut)
+        let client = URLSessionMtihaniAPIClient(
+            baseURL: baseURL, accessToken: accessToken, transport: transport)
+        var forcedRefreshes = 0
+        client.tokenProvider = { force in
+            if force { forcedRefreshes += 1 }
+            return self.accessToken
+        }
+
+        await assertAPIError(.transport) {
+            try await client.uploadCapture(
+                sessionId: "session-123", screenshots: [Data([1, 2, 3])], language: nil)
+        }
+
+        XCTAssertEqual(transport.requests, 1)
+        XCTAssertEqual(forcedRefreshes, 0)
+        XCTAssertEqual(transport.lastRequest?.timeoutInterval, 120)
+    }
+
 }
 
 @MainActor

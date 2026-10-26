@@ -269,7 +269,7 @@ final class AppState: ObservableObject {
         }
         do {
             var request = URLRequest(url: url)
-            request.timeoutInterval = 8
+            request.timeoutInterval = URLSessionHTTPTransport.backendRequestTimeout
             let (_, response) = try await URLSession.shared.data(for: request)
             connectionTitle =
                 (response as? HTTPURLResponse)?.statusCode == 200

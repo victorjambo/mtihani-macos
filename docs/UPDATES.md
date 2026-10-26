@@ -43,21 +43,23 @@ live services, and wrapper tests inject a fake driver.
 ## Configuration and trust
 
 Set `SPARKLE_FEED_URL` and `SPARKLE_PUBLIC_ED_KEY` in
-`Configuration/Updates.xcconfig`, or override these build settings with an
+`Debug.xcconfig` and `Release.xcconfig`, or override these build settings with an
 external `-xcconfig` file or `xcodebuild` arguments. Use `https:/$()/host/path`
 inside xcconfig files so `//` is not treated as a comment. The bundled
 `SUFeedURL` and `SUPublicEDKey` expand these settings. There is one feed per
 build, with no runtime channels or backend version API.
 
 The production URL is
-`https://mtihani-app-frontend.vercel.app/appcast.xml`. Its source is
+`https://mtihani-client.vercel.app/appcast.xml`. Its source is
 `apps/frontend/public/appcast.xml` in the sibling `mtihani-app` repository and
 Vercel serves it as a static XML asset. Before the first release, replace the
 empty feed with the signed output from `generate-appcast.sh`. The public
-key is configured for the `mtihani` signing key created in this Mac's login
-Keychain on 2026-09-09. Release signing must use that same key. Back it up securely
-before distributing; another Mac must obtain the existing key through secure
-transfer rather than generate a replacement. If a build overrides the public
+key is configured for the `mtihani` signing key generated in this Mac's login
+Keychain on 2026-10-26 for release 1.1.3. Releases from the previous key owner
+require a one-time manual installation of 1.1.3; this is a fresh update trust
+root, not an automatic key rotation for older installations. Future releases
+must use the same new key. Back it up securely; another release Mac must import
+it securely instead of generating another replacement. If a build overrides the public
 key with an empty or invalid value, the updater refuses to start and the release
 packaging validator refuses to package that build.
 
@@ -69,12 +71,14 @@ Sparkle requires a Developer ID signed DMG to rotate a lost EdDSA key. Keep
 secure backups and follow Sparkle's key-rotation guide rather than replacing
 both signing identities at once.
 
-Releases intentionally distribute an unsigned app in a ZIP archive. Sparkle EdDSA
-still authenticates updates independently of Apple code signing:
+Releases distribute an ad-hoc signed universal app in a ZIP archive, without
+Developer ID signing or notarization. Sparkle EdDSA authenticates update archives
+independently of Apple code signing:
 
-1. Xcode archives with distribution code signing disabled, then the release
-   script removes Xcode's ad-hoc linker signature from the outer app.
-2. The unsigned app is packaged in a ZIP with its bundle structure preserved.
+1. Xcode archives with distribution code signing disabled, then packaging verifies
+   both CPU architectures and signs the app with an ad-hoc signature and its sandbox
+   entitlements. Native arm64 code must retain a valid signature.
+2. The app is packaged in a ZIP with its bundle structure preserved.
 3. Sparkle signs the **final ZIP bytes** and produces the appcast.
 4. HTTPS hosting serves the appcast, notes, and ZIP independently of NestJS.
 
@@ -103,10 +107,11 @@ is not enabled because Mtihani already has `com.apple.security.network.client`.
 No additional XPC copy phases, app groups, or TLS exceptions are needed.
 The existing local-network ATS exception belongs to backend development;
 update configuration requires HTTPS, including private test feeds.
-The normal development and test signing settings remain unchanged. Production
-release automation passes `CODE_SIGNING_ALLOWED=NO`, removes any ad-hoc outer
-app signature, and packages the application directly from the archive; it does
-not export, distribution-sign, notarize, or staple it.
+Debug builds and tests use local ad-hoc signing. Release automation archives with
+`CODE_SIGNING_ALLOWED=NO`, then packaging re-seals the embedded framework and signs
+the app with its expanded sandbox entitlements. It verifies both CPU architectures
+and all nested signatures before creating the ZIP. It does not Developer ID sign,
+notarize, or staple the app.
 
 ## One-time release owner setup
 
@@ -151,8 +156,8 @@ bash scripts/release-to-supabase.sh /path/to/release-notes.html
 ```
 
 The bucket must already exist and be public. The script never overwrites a
-published object. It archives with distribution signing disabled, removes the
-outer app's ad-hoc linker signature, invokes the ZIP and appcast scripts,
+published object. It archives both CPU architectures with distribution signing
+disabled, invokes the ad-hoc signing, ZIP packaging, and appcast scripts,
 uploads the versioned ZIP and notes, downloads
 both public objects to verify their SHA-256 hashes, and copies the appcast to
 `../mtihani-app/apps/frontend/public/appcast.xml` only after verification.
@@ -182,7 +187,7 @@ xcodebuild -project mtihani-macos.xcodeproj -scheme mtihani-macos \
 Use a fresh archive destination for each release. The app is located at
 `build/Mtihani.xcarchive/Products/Applications/Mtihani.app`.
 
-4. Produce the unsigned direct-download/Sparkle app ZIP:
+4. Produce the universal direct-download/Sparkle app ZIP:
 
 ```bash
 bash scripts/package-release.sh \
@@ -190,7 +195,7 @@ bash scripts/package-release.sh \
 ```
 
 The script verifies bundle configuration, increasing builds, and embedded
-Sparkle components. It verifies the app is unsigned, then uses `ditto` with
+Sparkle components. It verifies both CPU architectures and valid ad-hoc signatures, then uses `ditto` with
 resource preservation and `--keepParent` to archive the complete app bundle.
 It refuses to overwrite an existing versioned artifact.
 Existing `dist/` artifacts are unchanged.
@@ -202,7 +207,7 @@ Existing `dist/` artifacts are unchanged.
 
 ```bash
 export SPARKLE_BIN="$PWD/build/SourcePackages/artifacts/sparkle/Sparkle/bin"
-bash scripts/generate-appcast.sh releases https://mtihani-app-frontend.vercel.app/
+bash scripts/generate-appcast.sh releases https://mtihani-client.vercel.app/
 ```
 
 The official `generate_appcast` extracts versions and metadata and creates
@@ -226,7 +231,7 @@ releases/
    lengths, then replace `apps/frontend/public/appcast.xml` with the generated
    `appcast.xml` and deploy it last.
    Verify the feed over HTTPS with `curl --fail --proto '=https'
-   --proto-redir '=https' --location URL`. Retain immutable archive URLs and
+--proto-redir '=https' --location URL`. Retain immutable archive URLs and
    ensure any redirects also use HTTPS. Never upload credentials or keys.
 7. Install the previous Sparkle-enabled Mtihani version into Applications,
    select **Check for Updates…**, review notes, install/relaunch, and confirm
@@ -235,7 +240,7 @@ releases/
 
 ### Future CI
 
-Reuse the unsigned archive and scripts above. Supply the Sparkle key either in
+Reuse the universal archive and scripts above. Supply the Sparkle key either in
 the build user's Keychain or through
 `SPARKLE_PRIVATE_KEY_FILE` pointing to a protected temporary secret file outside
 the checkout. `SPARKLE_KEY_ACCOUNT` overrides the default `mtihani` account.
@@ -259,7 +264,7 @@ sandbox containers, installations, and capture permissions from daily use.
    `MARKETING_VERSION=...`, and `CURRENT_PROJECT_VERSION=...` to `xcodebuild`.
    Both builds must use the same test ID, feed, and public key. Use separate
    output directories and preserve the old and new bundles.
-2. Use the unsigned app ZIP packaging flow above with the test settings. Keep
+2. Use the universal app ZIP packaging flow above with the test settings. Keep
    test ZIPs in a separate test release directory. Never mutate an app's Info.plist
    after generating its Sparkle archive signature.
 3. Put only the new artifact and matching notes in the test release directory.
